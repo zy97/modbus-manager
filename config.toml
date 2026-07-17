@@ -4,3 +4,12 @@ listen_addr = "0.0.0.0:3000"
 [logging]
 retained_days = 30
 cleanup_interval_hours = 24
+
+[modbus]
+devices = [
+    { address = "127.0.0.1:502", slave_id = 1 },
+]
+connect_timeout_ms = 1000
+reconnect_delay_ms = 500
+max_connect_attempts = 3
+pool_max_size = 1

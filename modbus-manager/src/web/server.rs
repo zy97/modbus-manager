@@ -6,7 +6,6 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
-use serde::Serialize;
 use std::net::SocketAddr;
 use tokio::{net::TcpListener, signal};
 use tracing::{error, info};

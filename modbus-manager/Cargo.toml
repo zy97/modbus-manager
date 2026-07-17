@@ -7,8 +7,10 @@ description = "Modbus manager service"
 [dependencies]
 axum = { version = "0.8.9", features = ["json", "tokio", "tracing"] }
 config = { version = "0.15.25", features = ["toml"] }
+deadpool = { version = "0.13.0", features = ["managed"] }
 serde = { version = "1.0.228", features = ["derive"] }
-tokio = { version = "1.52.3", features = ["full"] }
+tokio = { version = "1.52.4", features = ["full"] }
+tokio-modbus = { version = "0.17", default-features = false, features = ["tcp"] }
 tracing = { version = "0.1.44", features = ["std"] }
 tracing-appender = "0.2.5"
 tracing-opentelemetry = "0.33"
