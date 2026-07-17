@@ -1,0 +1,28 @@
+[package]
+name = "modbus-manager"
+version = "0.1.0"
+edition = "2024"
+description = "Modbus manager service"
+
+[dependencies]
+axum = { version = "0.8.9", features = ["json", "tokio", "tracing"] }
+config = { version = "0.15.25", features = ["toml"] }
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.52.3", features = ["full"] }
+tracing = { version = "0.1.44", features = ["std"] }
+tracing-appender = "0.2.5"
+tracing-opentelemetry = "0.33"
+tracing-subscriber = { version = "0.3.23", features = [
+    "registry",
+    "std",
+    "env-filter",
+] }
+
+# OpenTelemetry - traces + logs via OTLP gRPC
+opentelemetry = "0.32"
+opentelemetry-appender-tracing = { version = "0.32", features = [
+    "experimental_span_attributes",
+] }
+opentelemetry-http = "0.32"
+opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic"] }
+opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
