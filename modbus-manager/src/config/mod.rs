@@ -297,4 +297,27 @@ mod tests {
         assert_eq!(route.function.as_str(), "0x06");
         assert_eq!(route.register_address, 10);
     }
+
+    #[test]
+    fn repository_config_contains_localhost_test_route() {
+        let app_config: super::AppConfig = config::Config::builder()
+            .add_source(config::File::from_str(
+                include_str!("../../../config.toml"),
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+
+        let route = app_config
+            .conveyor
+            .find_send_route("TEST-SOURCE", "TEST-DEST")
+            .unwrap();
+
+        assert_eq!(route.device, "localhost:5000");
+        assert_eq!(route.function.as_str(), "0x06");
+        assert_eq!(route.register_address, 10);
+        assert_eq!(route.value, 6);
+    }
 }

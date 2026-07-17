@@ -13,6 +13,8 @@ pool_max_size = 1
 
 [conveyor]
 send_routes = [
+    { source = "TEST-SOURCE", destination = "TEST-DEST", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 6 },
+    { source = "TEST-SOURCE", destination = "TEST-DEST1", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 16 },
     { source = "5104-1-1-1", destination = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 6 },
     { source = "5104-1-1-1", destination = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 16 },
     { source = "5501-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },

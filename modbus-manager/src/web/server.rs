@@ -229,7 +229,7 @@ mod tests {
             send_routes: vec![ConveyorSendRoute {
                 source: "5104-1-1-1".to_string(),
                 destination: "5104-1-1-1".to_string(),
-                device: "192.168.70.102:2000".to_string(),
+                device: "localhost:5000".to_string(),
                 slave_id: 1,
                 function: ConveyorWriteFunction::WriteSingleRegister,
                 register_address: 10,
@@ -239,7 +239,7 @@ mod tests {
 
         let route = resolve_conveyor_write(&conveyor, "5104-1-1-1", "5104-1-1-1").unwrap();
 
-        assert_eq!(route.device, "192.168.70.102:2000");
+        assert_eq!(route.device, "localhost:5000");
         assert_eq!(route.function.as_str(), "0x06");
         assert_eq!(route.register_address, 10);
         assert_eq!(route.value, 6);
