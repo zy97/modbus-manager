@@ -24,6 +24,8 @@ pub struct AppConfig {
     pub logging: LoggingConfig,
     #[serde(default)]
     pub modbus: ModbusConfig,
+    #[serde(default)]
+    pub conveyor: ConveyorConfig,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -34,17 +36,8 @@ pub struct LoggingConfig {
     pub cleanup_interval_hours: u64,
 }
 
-#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
-pub struct ModbusDevice {
-    pub address: String,
-    #[serde(default = "default_modbus_slave_id")]
-    pub slave_id: u8,
-}
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct ModbusConfig {
-    #[serde(default)]
-    pub devices: Vec<ModbusDevice>,
     #[serde(default = "default_modbus_connect_timeout_ms")]
     pub connect_timeout_ms: u64,
     #[serde(default = "default_modbus_reconnect_delay_ms")]
@@ -53,6 +46,37 @@ pub struct ModbusConfig {
     pub max_connect_attempts: usize,
     #[serde(default = "default_modbus_pool_max_size")]
     pub pool_max_size: usize,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ConveyorConfig {
+    #[serde(default)]
+    pub send_routes: Vec<ConveyorSendRoute>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+pub struct ConveyorSendRoute {
+    pub source: String,
+    pub destination: String,
+    pub device: String,
+    #[serde(default = "default_modbus_slave_id")]
+    pub slave_id: u8,
+    #[serde(default)]
+    pub function: ConveyorWriteFunction,
+    pub register_address: u16,
+    pub value: u16,
+}
+
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum ConveyorWriteFunction {
+    #[serde(rename = "0x05", alias = "write_single_coil")]
+    WriteSingleCoil,
+    #[serde(rename = "0x06", alias = "write_single_register")]
+    WriteSingleRegister,
+    #[serde(rename = "0x0F", alias = "write_multiple_coils")]
+    WriteMultipleCoils,
+    #[serde(rename = "0x10", alias = "write_multiple_registers")]
+    WriteMultipleRegisters,
 }
 
 pub fn load_config() -> Result<AppConfig, ConfigError> {
@@ -94,7 +118,6 @@ fn default_log_cleanup_interval_hours() -> u64 {
 impl Default for ModbusConfig {
     fn default() -> Self {
         Self {
-            devices: Vec::new(),
             connect_timeout_ms: default_modbus_connect_timeout_ms(),
             reconnect_delay_ms: default_modbus_reconnect_delay_ms(),
             max_connect_attempts: default_modbus_max_connect_attempts(),
@@ -121,6 +144,31 @@ impl ModbusConfig {
     }
 }
 
+impl ConveyorConfig {
+    pub fn find_send_route(&self, source: &str, destination: &str) -> Option<&ConveyorSendRoute> {
+        self.send_routes
+            .iter()
+            .find(|route| route.source == source && route.destination == destination)
+    }
+}
+
+impl ConveyorWriteFunction {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ConveyorWriteFunction::WriteSingleCoil => "0x05",
+            ConveyorWriteFunction::WriteSingleRegister => "0x06",
+            ConveyorWriteFunction::WriteMultipleCoils => "0x0F",
+            ConveyorWriteFunction::WriteMultipleRegisters => "0x10",
+        }
+    }
+}
+
+impl Default for ConveyorWriteFunction {
+    fn default() -> Self {
+        Self::WriteSingleRegister
+    }
+}
+
 fn default_modbus_connect_timeout_ms() -> u64 {
     1000
 }
@@ -143,7 +191,7 @@ fn default_modbus_slave_id() -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use super::{LoggingConfig, ModbusConfig, ModbusDevice, ServerConfig};
+    use super::{ConveyorConfig, LoggingConfig, ModbusConfig, ServerConfig};
 
     #[test]
     fn server_config_uses_default_listen_addr() {
@@ -164,7 +212,6 @@ mod tests {
     fn modbus_config_uses_default_pool_settings() {
         let config = ModbusConfig::default();
 
-        assert_eq!(config.devices, Vec::new());
         assert_eq!(config.connect_timeout_ms, 1000);
         assert_eq!(config.reconnect_delay_ms, 500);
         assert_eq!(config.max_connect_attempts(), 3);
@@ -184,10 +231,16 @@ mod tests {
     }
 
     #[test]
-    fn modbus_device_defaults_to_slave_id_one() {
-        let device: ModbusDevice = config::Config::builder()
+    fn conveyor_send_route_defaults_to_slave_id_one() {
+        let route: super::ConveyorSendRoute = config::Config::builder()
             .add_source(config::File::from_str(
-                r#"address = "127.0.0.1:502""#,
+                r#"
+                source = "5104-1-1-1"
+                destination = "5104-1-1-1"
+                device = "192.168.70.102:2000"
+                register_address = 10
+                value = 6
+                "#,
                 config::FileFormat::Toml,
             ))
             .build()
@@ -195,6 +248,53 @@ mod tests {
             .try_deserialize()
             .unwrap();
 
-        assert_eq!(device.slave_id, 1);
+        assert_eq!(route.slave_id, 1);
+    }
+
+    #[test]
+    fn conveyor_config_resolves_send_task_write_value_and_register() {
+        let config = ConveyorConfig {
+            send_routes: vec![super::ConveyorSendRoute {
+                source: "5104-1-1-1".to_string(),
+                destination: "5104-1-1-1".to_string(),
+                device: "192.168.70.102:2000".to_string(),
+                slave_id: 1,
+                function: super::ConveyorWriteFunction::WriteSingleRegister,
+                register_address: 10,
+                value: 6,
+            }],
+        };
+
+        let route = config.find_send_route("5104-1-1-1", "5104-1-1-1").unwrap();
+
+        assert_eq!(route.value, 6);
+        assert_eq!(route.device, "192.168.70.102:2000");
+        assert_eq!(route.slave_id, 1);
+        assert_eq!(route.function.as_str(), "0x06");
+        assert_eq!(route.register_address, 10);
+    }
+
+    #[test]
+    fn repository_config_contains_legacy_conveyor_write_example() {
+        let app_config: super::AppConfig = config::Config::builder()
+            .add_source(config::File::from_str(
+                include_str!("../../../config.toml"),
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+
+        let route = app_config
+            .conveyor
+            .find_send_route("5104-1-1-1", "5104-1-1-1")
+            .unwrap();
+
+        assert_eq!(route.value, 6);
+        assert_eq!(route.device, "192.168.70.102:2000");
+        assert_eq!(route.slave_id, 1);
+        assert_eq!(route.function.as_str(), "0x06");
+        assert_eq!(route.register_address, 10);
     }
 }

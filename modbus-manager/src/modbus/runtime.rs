@@ -1,9 +1,10 @@
 use crate::{
-    config::{APP_CONFIG, ModbusConfig, ModbusDevice},
+    config::{APP_CONFIG, ModbusConfig},
     modbus::pool::{ModbusManager, Pool},
 };
 use deadpool::managed::Object;
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, sync::RwLock};
+use tokio_modbus::prelude::*;
 use tracing::{info, warn};
 
 #[derive(Clone)]
@@ -20,8 +21,7 @@ struct ModbusTarget {
 }
 
 pub struct ModbusService {
-    devices: Vec<ModbusDevice>,
-    runtimes: HashMap<ModbusTarget, ModbusRuntime>,
+    runtimes: RwLock<HashMap<ModbusTarget, ModbusRuntime>>,
     config: ModbusConfig,
 }
 
@@ -31,24 +31,8 @@ pub fn build_modbus_service() -> ModbusService {
 
 impl ModbusService {
     pub fn new(config: &ModbusConfig) -> Self {
-        let runtimes = config
-            .devices
-            .iter()
-            .map(|device| {
-                let runtime = build_modbus_runtime(device, config);
-                (
-                    ModbusTarget {
-                        address: runtime.address.clone(),
-                        slave_id: runtime.slave_id,
-                    },
-                    runtime,
-                )
-            })
-            .collect();
-
         Self {
-            devices: config.devices.clone(),
-            runtimes,
+            runtimes: RwLock::new(HashMap::new()),
             config: config.clone(),
         }
     }
@@ -66,8 +50,44 @@ impl ModbusService {
             .map_err(|err| ModbusError::ConnectionPool(address.to_string(), err.to_string()))
     }
 
+    pub async fn write_single_register(
+        &self,
+        address: &str,
+        slave_id: u8,
+        register_address: u16,
+        value: u16,
+    ) -> Result<(), ModbusError> {
+        let mut connection = self.connection(address, slave_id).await?;
+
+        match connection
+            .context
+            .write_single_register(register_address, value)
+            .await
+        {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(exception)) => Err(ModbusError::WriteException(
+                address.to_string(),
+                register_address,
+                value,
+                format!("{exception:?}"),
+            )),
+            Err(err) => {
+                connection.status = false;
+                Err(ModbusError::WriteTransport(
+                    address.to_string(),
+                    register_address,
+                    value,
+                    err.to_string(),
+                ))
+            }
+        }
+    }
+
     pub fn configured_device_count(&self) -> usize {
-        self.runtimes.len()
+        self.runtimes
+            .read()
+            .expect("modbus runtime lock poisoned")
+            .len()
     }
 
     fn runtime(&self, address: &str, slave_id: u8) -> ModbusRuntime {
@@ -75,33 +95,35 @@ impl ModbusService {
             address: address.to_string(),
             slave_id,
         };
-        if let Some(runtime) = self.runtimes.get(&target) {
+        if let Some(runtime) = self
+            .runtimes
+            .read()
+            .expect("modbus runtime lock poisoned")
+            .get(&target)
+        {
             runtime.clone()
         } else {
-            build_modbus_runtime(
-                &ModbusDevice {
-                    address: address.to_string(),
-                    slave_id,
-                },
-                &self.config,
-            )
+            let mut runtimes = self.runtimes.write().expect("modbus runtime lock poisoned");
+            runtimes
+                .entry(target)
+                .or_insert_with(|| build_modbus_runtime(address, slave_id, &self.config))
+                .clone()
         }
     }
 }
 
-fn build_modbus_runtime(device: &ModbusDevice, config: &ModbusConfig) -> ModbusRuntime {
-    let address = device.address.clone();
+fn build_modbus_runtime(address: &str, slave_id: u8, config: &ModbusConfig) -> ModbusRuntime {
     ModbusRuntime {
-        pool: build_modbus_pool(device, config),
-        address,
-        slave_id: device.slave_id,
+        pool: build_modbus_pool(address, slave_id, config),
+        address: address.to_string(),
+        slave_id,
     }
 }
 
-fn build_modbus_pool(device: &ModbusDevice, config: &ModbusConfig) -> Pool {
+fn build_modbus_pool(address: &str, slave_id: u8, config: &ModbusConfig) -> Pool {
     Pool::builder(ModbusManager {
-        addr: device.address.clone(),
-        slave_id: device.slave_id,
+        addr: address.to_string(),
+        slave_id,
         connect_timeout: config.connect_timeout(),
         reconnect_delay: config.reconnect_delay(),
         max_connect_attempts: config.max_connect_attempts(),
@@ -113,19 +135,21 @@ fn build_modbus_pool(device: &ModbusDevice, config: &ModbusConfig) -> Pool {
 
 pub fn log_startup(service: &ModbusService) {
     info!(
-        devices = ?service.devices,
-        "Modbus管理器已启动 devices={:?}",
-        service.devices
+        configured_device_count = service.configured_device_count(),
+        "Modbus管理器已启动 configured_device_count={}",
+        service.configured_device_count()
     );
 
     if service.configured_device_count() == 0 {
-        warn!("未配置固定Modbus设备，仍可通过传入地址动态建立连接");
+        warn!("未配置固定Modbus设备池，将根据业务配置中的设备地址动态建立连接");
     }
 }
 
 #[derive(Debug)]
 pub enum ModbusError {
     ConnectionPool(String, String),
+    WriteTransport(String, u16, u16, String),
+    WriteException(String, u16, u16, String),
 }
 
 impl std::fmt::Display for ModbusError {
@@ -134,6 +158,14 @@ impl std::fmt::Display for ModbusError {
             ModbusError::ConnectionPool(addr, err) => {
                 write!(f, "failed to acquire modbus connection {addr}: {err}")
             }
+            ModbusError::WriteTransport(addr, register_address, value, err) => write!(
+                f,
+                "failed to write modbus register {addr}:{register_address} value {value}: {err}"
+            ),
+            ModbusError::WriteException(addr, register_address, value, exception) => write!(
+                f,
+                "modbus exception writing register {addr}:{register_address} value {value}: {exception}"
+            ),
         }
     }
 }
@@ -143,58 +175,29 @@ impl std::error::Error for ModbusError {}
 #[cfg(test)]
 mod tests {
     use super::ModbusService;
-    use crate::config::{ModbusConfig, ModbusDevice};
+    use crate::config::ModbusConfig;
 
     #[test]
-    fn service_builds_runtime_for_each_configured_device() {
-        let config = ModbusConfig {
-            devices: vec![
-                ModbusDevice {
-                    address: "127.0.0.1:502".to_string(),
-                    slave_id: 1,
-                },
-                ModbusDevice {
-                    address: "127.0.0.1:503".to_string(),
-                    slave_id: 2,
-                },
-            ],
-            ..ModbusConfig::default()
-        };
+    fn service_does_not_require_preconfigured_devices() {
+        let config = ModbusConfig::default();
 
         let service = ModbusService::new(&config);
 
-        assert_eq!(service.configured_device_count(), 2);
-        assert_eq!(
-            service
-                .runtimes
-                .get(&super::ModbusTarget {
-                    address: "127.0.0.1:503".to_string(),
-                    slave_id: 2
-                })
-                .unwrap()
-                .slave_id,
-            2
-        );
+        assert_eq!(service.configured_device_count(), 0);
     }
 
     #[test]
-    fn service_keeps_same_address_with_different_slave_ids_separate() {
-        let config = ModbusConfig {
-            devices: vec![
-                ModbusDevice {
-                    address: "127.0.0.1:502".to_string(),
-                    slave_id: 1,
-                },
-                ModbusDevice {
-                    address: "127.0.0.1:502".to_string(),
-                    slave_id: 2,
-                },
-            ],
-            ..ModbusConfig::default()
-        };
-
+    fn dynamic_runtime_is_cached_by_address_and_slave_id() {
+        let config = ModbusConfig::default();
         let service = ModbusService::new(&config);
 
+        let first = service.runtime("127.0.0.1:502", 1);
+        let second = service.runtime("127.0.0.1:502", 1);
+        let third = service.runtime("127.0.0.1:502", 2);
+
+        assert_eq!(first.address, second.address);
+        assert_eq!(first.slave_id, second.slave_id);
+        assert_eq!(third.slave_id, 2);
         assert_eq!(service.configured_device_count(), 2);
     }
 

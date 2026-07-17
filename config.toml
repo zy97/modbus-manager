@@ -6,10 +6,40 @@ retained_days = 30
 cleanup_interval_hours = 24
 
 [modbus]
-devices = [
-    { address = "127.0.0.1:502", slave_id = 1 },
-]
 connect_timeout_ms = 1000
 reconnect_delay_ms = 500
 max_connect_attempts = 3
 pool_max_size = 1
+
+[conveyor]
+send_routes = [
+    { source = "5104-1-1-1", destination = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 6 },
+    { source = "5104-1-1-1", destination = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 16 },
+    { source = "5501-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },
+    { source = "5501-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },
+    { source = "5103-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 16 },
+    { source = "5103-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 16 },
+    { source = "5103-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 6 },
+    { source = "5103-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 6 },
+    { source = "5103-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 26 },
+    { source = "5103-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 26 },
+    { source = "5502-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 6 },
+    { source = "5502-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 6 },
+    { source = "5502-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 26 },
+    { source = "5502-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 16 },
+    { source = "5101-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 18, value = 6 },
+    { source = "5102-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 6 },
+    { source = "5106-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 13, value = 6 },
+    { source = "5106-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 13, value = 16 },
+    { source = "5107-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 6 },
+    { source = "5107-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    { source = "5107-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    { source = "5107-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    { source = "5107-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    { source = "5503-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 6 },
+    { source = "5503-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    { source = "5503-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    { source = "5503-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    { source = "RLYSSXCA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
+    { source = "RLYSSXRA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
+]
