@@ -83,6 +83,39 @@ impl ModbusService {
         }
     }
 
+    pub async fn read_holding_registers(
+        &self,
+        address: &str,
+        slave_id: u8,
+        register_address: u16,
+        quantity: u16,
+    ) -> Result<Vec<u16>, ModbusError> {
+        let mut connection = self.connection(address, slave_id).await?;
+
+        match connection
+            .context
+            .read_holding_registers(register_address, quantity)
+            .await
+        {
+            Ok(Ok(values)) => Ok(values),
+            Ok(Err(exception)) => Err(ModbusError::ReadException(
+                address.to_string(),
+                register_address,
+                quantity,
+                format!("{exception:?}"),
+            )),
+            Err(err) => {
+                connection.status = false;
+                Err(ModbusError::ReadTransport(
+                    address.to_string(),
+                    register_address,
+                    quantity,
+                    err.to_string(),
+                ))
+            }
+        }
+    }
+
     pub fn configured_device_count(&self) -> usize {
         self.runtimes
             .read()
@@ -150,6 +183,8 @@ pub enum ModbusError {
     ConnectionPool(String, String),
     WriteTransport(String, u16, u16, String),
     WriteException(String, u16, u16, String),
+    ReadTransport(String, u16, u16, String),
+    ReadException(String, u16, u16, String),
 }
 
 impl std::fmt::Display for ModbusError {
@@ -165,6 +200,14 @@ impl std::fmt::Display for ModbusError {
             ModbusError::WriteException(addr, register_address, value, exception) => write!(
                 f,
                 "modbus exception writing register {addr}:{register_address} value {value}: {exception}"
+            ),
+            ModbusError::ReadTransport(addr, register_address, quantity, err) => write!(
+                f,
+                "failed to read modbus holding registers {addr}:{register_address} quantity {quantity}: {err}"
+            ),
+            ModbusError::ReadException(addr, register_address, quantity, exception) => write!(
+                f,
+                "modbus exception reading holding registers {addr}:{register_address} quantity {quantity}: {exception}"
             ),
         }
     }

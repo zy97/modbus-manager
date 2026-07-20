@@ -52,6 +52,8 @@ pub struct ModbusConfig {
 pub struct ConveyorConfig {
     #[serde(default)]
     pub send_routes: Vec<ConveyorSendRoute>,
+    #[serde(default)]
+    pub can_putdown_checks: Vec<ConveyorReadCheck>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -67,6 +69,19 @@ pub struct ConveyorSendRoute {
     pub value: u16,
 }
 
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+pub struct ConveyorReadCheck {
+    pub location: String,
+    pub device: String,
+    #[serde(default = "default_modbus_slave_id")]
+    pub slave_id: u8,
+    #[serde(default)]
+    pub function: ConveyorReadFunction,
+    pub register_address: u16,
+    #[serde(default = "default_modbus_read_quantity")]
+    pub quantity: u16,
+}
+
 #[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum ConveyorWriteFunction {
     #[serde(rename = "0x05", alias = "write_single_coil")]
@@ -77,6 +92,18 @@ pub enum ConveyorWriteFunction {
     WriteMultipleCoils,
     #[serde(rename = "0x10", alias = "write_multiple_registers")]
     WriteMultipleRegisters,
+}
+
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum ConveyorReadFunction {
+    #[serde(rename = "0x01", alias = "read_coils")]
+    ReadCoils,
+    #[serde(rename = "0x02", alias = "read_discrete_inputs")]
+    ReadDiscreteInputs,
+    #[serde(rename = "0x03", alias = "read_holding_registers")]
+    ReadHoldingRegisters,
+    #[serde(rename = "0x04", alias = "read_input_registers")]
+    ReadInputRegisters,
 }
 
 pub fn load_config() -> Result<AppConfig, ConfigError> {
@@ -150,6 +177,12 @@ impl ConveyorConfig {
             .iter()
             .find(|route| route.source == source && route.destination == destination)
     }
+
+    pub fn find_can_putdown_check(&self, location: &str) -> Option<&ConveyorReadCheck> {
+        self.can_putdown_checks
+            .iter()
+            .find(|check| check.location == location)
+    }
 }
 
 impl ConveyorWriteFunction {
@@ -166,6 +199,23 @@ impl ConveyorWriteFunction {
 impl Default for ConveyorWriteFunction {
     fn default() -> Self {
         Self::WriteSingleRegister
+    }
+}
+
+impl ConveyorReadFunction {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ConveyorReadFunction::ReadCoils => "0x01",
+            ConveyorReadFunction::ReadDiscreteInputs => "0x02",
+            ConveyorReadFunction::ReadHoldingRegisters => "0x03",
+            ConveyorReadFunction::ReadInputRegisters => "0x04",
+        }
+    }
+}
+
+impl Default for ConveyorReadFunction {
+    fn default() -> Self {
+        Self::ReadHoldingRegisters
     }
 }
 
@@ -186,6 +236,10 @@ fn default_modbus_pool_max_size() -> usize {
 }
 
 fn default_modbus_slave_id() -> u8 {
+    1
+}
+
+fn default_modbus_read_quantity() -> u16 {
     1
 }
 
@@ -263,6 +317,7 @@ mod tests {
                 register_address: 10,
                 value: 6,
             }],
+            can_putdown_checks: Vec::new(),
         };
 
         let route = config.find_send_route("5104-1-1-1", "5104-1-1-1").unwrap();
@@ -272,6 +327,27 @@ mod tests {
         assert_eq!(route.slave_id, 1);
         assert_eq!(route.function.as_str(), "0x06");
         assert_eq!(route.register_address, 10);
+    }
+
+    #[test]
+    fn conveyor_read_check_defaults_to_holding_register_len_one_and_value_six() {
+        let check: super::ConveyorReadCheck = config::Config::builder()
+            .add_source(config::File::from_str(
+                r#"
+                location = "5107-1-1-1"
+                device = "192.168.70.100:2000"
+                register_address = 4
+                "#,
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+
+        assert_eq!(check.slave_id, 1);
+        assert_eq!(check.function.as_str(), "0x03");
+        assert_eq!(check.quantity, 1);
     }
 
     #[test]
@@ -315,9 +391,32 @@ mod tests {
             .find_send_route("TEST-SOURCE", "TEST-DEST")
             .unwrap();
 
-        assert_eq!(route.device, "localhost:5000");
+        assert_eq!(route.device, "127.0.0.1:5000");
         assert_eq!(route.function.as_str(), "0x06");
         assert_eq!(route.register_address, 10);
         assert_eq!(route.value, 6);
+    }
+
+    #[test]
+    fn repository_config_contains_legacy_can_putdown_mapping() {
+        let app_config: super::AppConfig = config::Config::builder()
+            .add_source(config::File::from_str(
+                include_str!("../../../config.toml"),
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+
+        let check = app_config
+            .conveyor
+            .find_can_putdown_check("5107-1-1-1")
+            .unwrap();
+
+        assert_eq!(check.location, "5107-1-1-1");
+        assert_eq!(check.device, "192.168.70.100:2000");
+        assert_eq!(check.function.as_str(), "0x03");
+        assert_eq!(check.register_address, 4);
     }
 }
