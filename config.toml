@@ -13,44 +13,80 @@ pool_max_size = 1
 
 [conveyor]
 send_routes = [
+    # 2楼成品流水线,起点终点相同不通过
     { source = "TEST-SOURCE", destination = "TEST-DEST", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 6 },
+    # 2楼成品流水线,起点终点不相同就通过，拆完箱之后终点会变
     { source = "TEST-SOURCE", destination = "TEST-DEST1", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 16 },
+    # 2楼成品流水线,起点终点相同不通过
     { source = "5104-1-1-1", destination = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 6 },
+    # 2楼成品流水线,起点终点不相同就通过，拆完箱之后终点会变
     { source = "5104-1-1-1", destination = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 16 },
+    # 2楼半成品流水线副出口送至一楼入库接驳点
     { source = "5501-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },
+    # 2楼半成品流水线副出口送至一楼翻包区
     { source = "5501-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },
+    # 2楼半成品流水线主出口送至一楼入库接驳点
     { source = "5103-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 16 },
+    # 2楼半成品流水线主出口送至一楼翻包区
     { source = "5103-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 16 },
+    # 2楼半成品流水线主出口送至拆箱区,到时候再改成5
     { source = "5103-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 6 },
+    # 2楼半成品流水线主出口送至负拆箱区
     { source = "5103-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 6 },
+    # 2楼半成品流水线主出口送至靠近机房入库点
     { source = "5103-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 26 },
+    # 2楼半成品流水线主出口送至离近机房入库点
     { source = "5103-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 26 },
+    # 2楼半成品流水线交叉口送至拆箱区
     { source = "5502-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 6 },
+    # 2楼半成品流水线交叉口送至负拆箱区
     { source = "5502-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 6 },
+    # 2楼半成品流水线交叉口送至靠近机房入库点
     { source = "5502-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 26 },
+    # 2楼半成品流水线交叉口送远离近机房入库点
     { source = "5502-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 16 },
+    # 2楼半成品流水线靠近机房入库点到终点
     { source = "5101-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 18, value = 6 },
+    # 2楼半成品流水线远离机房入库点到终点
     { source = "5102-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 6 },
+    # 1楼流水线出口到翻包区
     { source = "5106-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 13, value = 6 },
+    # 1楼流水线出口到出口点
     { source = "5106-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 13, value = 16 },
+    # 1楼流水线入口到翻包区
     { source = "5107-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 6 },
+    # 1楼流水线入口到主拆箱区
     { source = "5107-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    # 1楼流水线入口到负拆箱区
     { source = "5107-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    # 1楼流水线入口到2楼出库接驳点
     { source = "5107-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    # 1楼流水线入口到2楼出库接驳点
     { source = "5107-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    # 1楼翻包区到一楼入库接驳点
     { source = "5503-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 6 },
+    # 1楼翻包区到2楼拆箱区
     { source = "5503-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    # 1楼翻包区到2楼入库接驳点
     { source = "5503-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    # 1楼翻包区到2楼入库接驳点
     { source = "5503-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    # todo 公司测试海康流程
     { source = "RLYSSXCA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
+    # todo 二期一楼,二楼流水线映射配置的还未适配
     { source = "RLYSSXRA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
 ]
 
 can_putdown_checks = [
-    { location = "TEST-LOCATION", device = "127.0.0.1:5000", function = "0x03", register_address = 10, quantity = 1 },
+    { location = "TEST-LOCATION", device = "127.0.0.1:5000", function = "0x03", register_address = 10, quantity = 1, hook_notify = "can-putdown-test" },
     { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 4, quantity = 1 },
     { location = "5103-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 0, quantity = 1 },
     { location = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 0, quantity = 1 },
+]
+
+webhooks = [
+    { name = "can-putdown-test", url = "http://localhost:5254/Conveyor/Test" },
+    { name = "can-putdown-main", url = "http://127.0.0.1:9002/webhook" },
 ]
 
 need_putdown_routes = [

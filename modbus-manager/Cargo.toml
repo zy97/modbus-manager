@@ -8,6 +8,7 @@ description = "Modbus manager service"
 axum = { version = "0.8.9", features = ["json", "tokio", "tracing"] }
 config = { version = "0.15.25", features = ["toml"] }
 deadpool = { version = "0.13.0", features = ["managed"] }
+reqwest = { version = "0.13.4", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.52.4", features = ["full"] }
 tokio-modbus = { version = "0.17", default-features = false, features = ["tcp"] }

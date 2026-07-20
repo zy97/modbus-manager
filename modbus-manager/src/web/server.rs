@@ -14,11 +14,13 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::{net::TcpListener, signal};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -37,6 +39,17 @@ pub fn build_router(modbus_service: Arc<ModbusService>, conveyor: ConveyorConfig
             modbus_service,
             conveyor,
         })
+}
+
+pub fn spawn_can_putdown_webhook_monitor(
+    modbus_service: Arc<ModbusService>,
+    conveyor: ConveyorConfig,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(run_can_putdown_webhook_monitor(
+        modbus_service,
+        conveyor,
+        Client::new(),
+    ))
 }
 
 pub async fn serve(
@@ -105,6 +118,12 @@ pub struct ConveyorNeedPutdownResponse {
     pub function: String,
     pub register_address: u16,
     pub value: u16,
+}
+
+#[derive(Debug, Serialize)]
+struct ConveyorCanPutdownWebhookPayload {
+    location: String,
+    values: Vec<u16>,
 }
 
 async fn write_conveyor(
@@ -216,6 +235,93 @@ async fn execute_can_putdown_check(
     }
 }
 
+async fn run_can_putdown_webhook_monitor(
+    modbus_service: Arc<ModbusService>,
+    conveyor: ConveyorConfig,
+    webhook_client: Client,
+) {
+    let interval_duration = Duration::from_secs(1);
+    let mut interval = tokio::time::interval(interval_duration);
+    loop {
+        interval.tick().await;
+        for check in conveyor
+            .can_putdown_checks
+            .iter()
+            .filter(|check| check.hook_notify.is_some())
+        {
+            match execute_can_putdown_check(&modbus_service, check).await {
+                Ok(values) => {
+                    if should_trigger_can_putdown_webhook(check, &values) {
+                        notify_can_putdown_webhook(&webhook_client, &conveyor, check, &values)
+                            .await;
+                    }
+                }
+                Err(err) => {
+                    warn!(
+                        location = %check.location,
+                        error = ?err,
+                        "can-putdown 后台轮询失败"
+                    );
+                }
+            }
+        }
+    }
+}
+
+async fn notify_can_putdown_webhook(
+    client: &Client,
+    conveyor: &ConveyorConfig,
+    check: &crate::config::ConveyorReadCheck,
+    values: &[u16],
+) {
+    let Some(webhook_name) = check.hook_notify.as_deref() else {
+        warn!(
+            location = %check.location,
+            "can-putdown 命中 webhook 条件，但未配置 webhook 名称"
+        );
+        return;
+    };
+
+    let Some(webhook) = conveyor.find_webhook(webhook_name) else {
+        warn!(
+            location = %check.location,
+            webhook_name = %webhook_name,
+            "can-putdown 命中 webhook 条件，但未找到对应 webhook"
+        );
+        return;
+    };
+
+    let payload = ConveyorCanPutdownWebhookPayload {
+        location: check.location.clone(),
+        values: values.to_vec(),
+    };
+    match client.post(&webhook.url).json(&payload).send().await {
+        Ok(response) if response.status().is_success() => {
+            info!(
+                location = %check.location,
+                webhook_name = %webhook.name,
+                "can-putdown webhook 通知成功"
+            );
+        }
+        Ok(response) => {
+            warn!(
+                location = %check.location,
+                webhook_name = %webhook.name,
+                status = %response.status(),
+                "can-putdown webhook 通知失败"
+            );
+        }
+        Err(err) => {
+            warn!(
+                location = %check.location,
+                webhook_name = %webhook.name,
+                error = ?err,
+                "can-putdown webhook 请求异常"
+            );
+        }
+    }
+}
+
 async fn execute_need_putdown_write(
     modbus_service: &ModbusService,
     route: &ConveyorNeedPutdownRoute,
@@ -288,6 +394,13 @@ fn resolve_need_putdown(
         })
 }
 
+fn should_trigger_can_putdown_webhook(
+    check: &crate::config::ConveyorReadCheck,
+    values: &[u16],
+) -> bool {
+    check.hook_notify.is_some() && values.first().is_some_and(|value| *value == 6)
+}
+
 async fn shutdown_signal() {
     if let Err(err) = signal::ctrl_c().await {
         error!(
@@ -336,7 +449,10 @@ impl IntoResponse for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use super::{ApiError, resolve_can_putdown, resolve_conveyor_write, resolve_need_putdown};
+    use super::{
+        ApiError, resolve_can_putdown, resolve_conveyor_write, resolve_need_putdown,
+        should_trigger_can_putdown_webhook,
+    };
     use crate::config::{
         ConveyorConfig, ConveyorNeedPutdownRoute, ConveyorReadCheck, ConveyorReadFunction,
         ConveyorSendRoute, ConveyorWriteFunction,
@@ -381,6 +497,7 @@ mod tests {
             }],
             can_putdown_checks: Vec::new(),
             need_putdown_routes: Vec::new(),
+            webhooks: Vec::new(),
         };
 
         let route = resolve_conveyor_write(&conveyor, "5104-1-1-1", "5104-1-1-1").unwrap();
@@ -410,8 +527,10 @@ mod tests {
                 function: ConveyorReadFunction::ReadHoldingRegisters,
                 register_address: 10,
                 quantity: 1,
+                hook_notify: None,
             }],
             need_putdown_routes: Vec::new(),
+            webhooks: Vec::new(),
         };
 
         let check = resolve_can_putdown(&conveyor, "5107-1-1-1").unwrap();
@@ -443,6 +562,7 @@ mod tests {
                 register_address: 16,
                 value: 6,
             }],
+            webhooks: Vec::new(),
         };
 
         let route = resolve_need_putdown(&conveyor, "5107-1-1-1").unwrap();
@@ -460,5 +580,28 @@ mod tests {
         let response = err.into_response();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn can_putdown_webhook_triggers_only_when_first_value_is_six_and_hook_enabled() {
+        let check = ConveyorReadCheck {
+            location: "5107-1-1-1".to_string(),
+            device: "localhost:5000".to_string(),
+            slave_id: 1,
+            function: ConveyorReadFunction::ReadHoldingRegisters,
+            register_address: 10,
+            quantity: 1,
+            hook_notify: Some("can-putdown-main".to_string()),
+        };
+
+        assert!(should_trigger_can_putdown_webhook(&check, &[6, 1]));
+        assert!(!should_trigger_can_putdown_webhook(&check, &[5, 6]));
+        assert!(!should_trigger_can_putdown_webhook(
+            &ConveyorReadCheck {
+                hook_notify: None,
+                ..check
+            },
+            &[6]
+        ));
     }
 }

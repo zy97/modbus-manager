@@ -56,6 +56,14 @@ pub struct ConveyorConfig {
     pub can_putdown_checks: Vec<ConveyorReadCheck>,
     #[serde(default)]
     pub need_putdown_routes: Vec<ConveyorNeedPutdownRoute>,
+    #[serde(default)]
+    pub webhooks: Vec<WebhookConfig>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+pub struct WebhookConfig {
+    pub name: String,
+    pub url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -82,6 +90,8 @@ pub struct ConveyorReadCheck {
     pub register_address: u16,
     #[serde(default = "default_modbus_read_quantity")]
     pub quantity: u16,
+    #[serde(default)]
+    pub hook_notify: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -202,6 +212,10 @@ impl ConveyorConfig {
         self.need_putdown_routes
             .iter()
             .find(|route| route.location == location)
+    }
+
+    pub fn find_webhook(&self, name: &str) -> Option<&WebhookConfig> {
+        self.webhooks.iter().find(|webhook| webhook.name == name)
     }
 }
 
@@ -362,6 +376,7 @@ mod tests {
             }],
             can_putdown_checks: Vec::new(),
             need_putdown_routes: Vec::new(),
+            webhooks: Vec::new(),
         };
 
         let route = config.find_send_route("5104-1-1-1", "5104-1-1-1").unwrap();
@@ -392,6 +407,7 @@ mod tests {
         assert_eq!(check.slave_id, 1);
         assert_eq!(check.function.as_str(), "0x03");
         assert_eq!(check.quantity, 1);
+        assert_eq!(check.hook_notify, None);
     }
 
     #[test]
@@ -455,13 +471,20 @@ mod tests {
 
         let check = app_config
             .conveyor
-            .find_can_putdown_check("5107-1-1-1")
+            .find_can_putdown_check("TEST-LOCATION")
             .unwrap();
 
-        assert_eq!(check.location, "5107-1-1-1");
-        assert_eq!(check.device, "192.168.70.100:2000");
+        assert_eq!(check.location, "TEST-LOCATION");
+        assert_eq!(check.device, "127.0.0.1:5000");
         assert_eq!(check.function.as_str(), "0x03");
-        assert_eq!(check.register_address, 4);
+        assert_eq!(check.register_address, 10);
+        assert_eq!(check.hook_notify.as_deref(), Some("can-putdown-test"));
+        assert_eq!(app_config.conveyor.webhooks.len(), 2);
+        let webhook = app_config
+            .conveyor
+            .find_webhook("can-putdown-test")
+            .unwrap();
+        assert_eq!(webhook.url, "http://localhost:5254/Conveyor/Test");
     }
 
     #[test]
