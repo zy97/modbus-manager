@@ -1,16 +1,17 @@
 [package]
 name = "modbus-manager"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 description = "Modbus manager service"
+repository = "https://github.com/zy97/modbus-manager"
 
 [dependencies]
 axum = { version = "0.8.9", features = ["json", "tokio", "tracing"] }
 config = { version = "0.15.25", features = ["toml"] }
 deadpool = { version = "0.13.0", features = ["managed"] }
 reqwest = { version = "0.13.4", features = ["json"] }
-serde = { version = "1.0.228", features = ["derive"] }
-tokio = { version = "1.52.4", features = ["full"] }
+serde = { version = "1.0.229", features = ["derive"] }
+tokio = { version = "1.53.0", features = ["full"] }
 tokio-modbus = { version = "0.17", default-features = false, features = ["tcp"] }
 tracing = { version = "0.1.44", features = ["std"] }
 tracing-appender = "0.2.5"
