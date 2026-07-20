@@ -1,7 +1,7 @@
 use crate::{
     config::{
         ConveyorConfig, ConveyorNeedPutdownRoute, ConveyorReadFunction, ConveyorSendRoute,
-        ConveyorWriteFunction,
+        ConveyorSendSuccessCheck, ConveyorWriteFunction,
     },
     modbus::{ModbusError, ModbusService},
     web::{api_response::ApiResponse, http_trace::trace_http_request},
@@ -32,6 +32,7 @@ pub fn build_router(modbus_service: Arc<ModbusService>, conveyor: ConveyorConfig
     Router::new()
         .route("/health", get(health))
         .route("/api/conveyor/write", post(write_conveyor))
+        .route("/api/conveyor/write-success", get(write_success))
         .route("/api/conveyor/can-putdown", get(can_putdown))
         .route("/api/conveyor/need-putdown", post(need_putdown))
         .layer(middleware::from_fn(trace_http_request))
@@ -106,6 +107,11 @@ pub struct ConveyorCanPutdownQuery {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ConveyorWriteSuccessQuery {
+    pub source: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ConveyorNeedPutdownRequest {
     pub location: String,
 }
@@ -145,6 +151,20 @@ async fn write_conveyor(
             register_address: route.register_address,
             value: route.value,
         }),
+        message: "ok".to_string(),
+    }))
+}
+
+async fn write_success(
+    State(state): State<AppState>,
+    Query(query): Query<ConveyorWriteSuccessQuery>,
+) -> Result<Json<ApiResponse<Vec<u16>>>, ApiError> {
+    let check = resolve_send_success_check(&state.conveyor, &query.source)?;
+    let values = execute_send_success_check(&state.modbus_service, &check).await?;
+
+    Ok(Json(ApiResponse {
+        success: true,
+        data: Some(values),
         message: "ok".to_string(),
     }))
 }
@@ -233,6 +253,34 @@ async fn execute_can_putdown_check(
             format!("unsupported conveyor read function: {}", function.as_str()),
         )),
     }
+}
+
+async fn execute_send_success_check(
+    modbus_service: &ModbusService,
+    check: &ConveyorSendSuccessCheck,
+) -> Result<Vec<u16>, ApiError> {
+    let values = match check.function {
+        ConveyorReadFunction::ReadHoldingRegisters => {
+            modbus_service
+                .read_holding_registers(
+                    &check.device,
+                    check.slave_id,
+                    check.register_address,
+                    check.quantity,
+                )
+                .await?
+        }
+        function => {
+            return Err(ApiError::new(
+                StatusCode::BAD_REQUEST,
+                format!(
+                    "unsupported conveyor write-success read function: {}",
+                    function.as_str()
+                ),
+            ));
+        }
+    };
+    Ok(values)
 }
 
 async fn run_can_putdown_webhook_monitor(
@@ -379,6 +427,21 @@ fn resolve_can_putdown(
         })
 }
 
+fn resolve_send_success_check(
+    conveyor: &ConveyorConfig,
+    source: &str,
+) -> Result<ConveyorSendSuccessCheck, ApiError> {
+    conveyor
+        .find_send_success_check(source)
+        .cloned()
+        .ok_or_else(|| {
+            ApiError::new(
+                StatusCode::BAD_REQUEST,
+                format!("unknown conveyor write-success source: {source}"),
+            )
+        })
+}
+
 fn resolve_need_putdown(
     conveyor: &ConveyorConfig,
     location: &str,
@@ -451,11 +514,11 @@ impl IntoResponse for ApiError {
 mod tests {
     use super::{
         ApiError, resolve_can_putdown, resolve_conveyor_write, resolve_need_putdown,
-        should_trigger_can_putdown_webhook,
+        resolve_send_success_check, should_trigger_can_putdown_webhook,
     };
     use crate::config::{
         ConveyorConfig, ConveyorNeedPutdownRoute, ConveyorReadCheck, ConveyorReadFunction,
-        ConveyorSendRoute, ConveyorWriteFunction,
+        ConveyorSendRoute, ConveyorSendSuccessCheck, ConveyorWriteFunction,
     };
     use axum::{Json, http::StatusCode, response::IntoResponse};
     use serde::Deserialize;
@@ -495,6 +558,7 @@ mod tests {
                 register_address: 10,
                 value: 6,
             }],
+            send_success_checks: Vec::new(),
             can_putdown_checks: Vec::new(),
             need_putdown_routes: Vec::new(),
             webhooks: Vec::new(),
@@ -520,6 +584,7 @@ mod tests {
     fn resolves_can_putdown_station_to_read_check() {
         let conveyor = ConveyorConfig {
             send_routes: Vec::new(),
+            send_success_checks: Vec::new(),
             can_putdown_checks: vec![ConveyorReadCheck {
                 location: "5107-1-1-1".to_string(),
                 device: "localhost:5000".to_string(),
@@ -553,6 +618,7 @@ mod tests {
     fn resolves_need_putdown_location_to_write_route() {
         let conveyor = ConveyorConfig {
             send_routes: Vec::new(),
+            send_success_checks: Vec::new(),
             can_putdown_checks: Vec::new(),
             need_putdown_routes: vec![ConveyorNeedPutdownRoute {
                 location: "5107-1-1-1".to_string(),
@@ -577,6 +643,38 @@ mod tests {
     #[test]
     fn missing_need_putdown_location_returns_bad_request() {
         let err = resolve_need_putdown(&ConveyorConfig::default(), "UNKNOWN").unwrap_err();
+        let response = err.into_response();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn resolves_send_success_check_from_source() {
+        let conveyor = ConveyorConfig {
+            send_routes: Vec::new(),
+            send_success_checks: vec![ConveyorSendSuccessCheck {
+                source: "5104-1-1-1".to_string(),
+                device: "localhost:5000".to_string(),
+                slave_id: 1,
+                function: ConveyorReadFunction::ReadHoldingRegisters,
+                register_address: 3,
+                quantity: 1,
+            }],
+            can_putdown_checks: Vec::new(),
+            need_putdown_routes: Vec::new(),
+            webhooks: Vec::new(),
+        };
+
+        let check = resolve_send_success_check(&conveyor, "5104-1-1-1").unwrap();
+
+        assert_eq!(check.device, "localhost:5000");
+        assert_eq!(check.function.as_str(), "0x03");
+        assert_eq!(check.register_address, 3);
+    }
+
+    #[test]
+    fn missing_send_success_check_returns_bad_request() {
+        let err = resolve_send_success_check(&ConveyorConfig::default(), "UNKNOWN").unwrap_err();
         let response = err.into_response();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);

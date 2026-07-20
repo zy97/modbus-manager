@@ -53,6 +53,8 @@ pub struct ConveyorConfig {
     #[serde(default)]
     pub send_routes: Vec<ConveyorSendRoute>,
     #[serde(default)]
+    pub send_success_checks: Vec<ConveyorSendSuccessCheck>,
+    #[serde(default)]
     pub can_putdown_checks: Vec<ConveyorReadCheck>,
     #[serde(default)]
     pub need_putdown_routes: Vec<ConveyorNeedPutdownRoute>,
@@ -92,6 +94,19 @@ pub struct ConveyorReadCheck {
     pub quantity: u16,
     #[serde(default)]
     pub hook_notify: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+pub struct ConveyorSendSuccessCheck {
+    pub source: String,
+    pub device: String,
+    #[serde(default = "default_modbus_slave_id")]
+    pub slave_id: u8,
+    #[serde(default)]
+    pub function: ConveyorReadFunction,
+    pub register_address: u16,
+    #[serde(default = "default_modbus_read_quantity")]
+    pub quantity: u16,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -206,6 +221,12 @@ impl ConveyorConfig {
         self.can_putdown_checks
             .iter()
             .find(|check| check.location == location)
+    }
+
+    pub fn find_send_success_check(&self, source: &str) -> Option<&ConveyorSendSuccessCheck> {
+        self.send_success_checks
+            .iter()
+            .find(|check| check.source == source)
     }
 
     pub fn find_need_putdown_route(&self, location: &str) -> Option<&ConveyorNeedPutdownRoute> {
@@ -374,6 +395,7 @@ mod tests {
                 register_address: 10,
                 value: 6,
             }],
+            send_success_checks: Vec::new(),
             can_putdown_checks: Vec::new(),
             need_putdown_routes: Vec::new(),
             webhooks: Vec::new(),
@@ -408,6 +430,27 @@ mod tests {
         assert_eq!(check.function.as_str(), "0x03");
         assert_eq!(check.quantity, 1);
         assert_eq!(check.hook_notify, None);
+    }
+
+    #[test]
+    fn conveyor_send_success_check_defaults_to_holding_register_len_one() {
+        let check: super::ConveyorSendSuccessCheck = config::Config::builder()
+            .add_source(config::File::from_str(
+                r#"
+                source = "5104-1-1-1"
+                device = "192.168.70.102:2000"
+                register_address = 3
+                "#,
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+
+        assert_eq!(check.slave_id, 1);
+        assert_eq!(check.function.as_str(), "0x03");
+        assert_eq!(check.quantity, 1);
     }
 
     #[test]
@@ -485,6 +528,30 @@ mod tests {
             .find_webhook("can-putdown-test")
             .unwrap();
         assert_eq!(webhook.url, "http://localhost:5254/Conveyor/Test");
+    }
+
+    #[test]
+    fn repository_config_contains_legacy_send_success_mapping() {
+        let app_config: super::AppConfig = config::Config::builder()
+            .add_source(config::File::from_str(
+                include_str!("../../../config.toml"),
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+
+        let check = app_config
+            .conveyor
+            .find_send_success_check("5104-1-1-1")
+            .unwrap();
+
+        assert_eq!(check.source, "5104-1-1-1");
+        assert_eq!(check.device, "192.168.70.102:2000");
+        assert_eq!(check.function.as_str(), "0x03");
+        assert_eq!(check.register_address, 3);
+        assert_eq!(check.quantity, 1);
     }
 
     #[test]
