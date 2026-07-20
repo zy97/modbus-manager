@@ -1,5 +1,8 @@
 use crate::{
-    config::{ConveyorConfig, ConveyorReadFunction, ConveyorSendRoute, ConveyorWriteFunction},
+    config::{
+        ConveyorConfig, ConveyorNeedPutdownRoute, ConveyorReadFunction, ConveyorSendRoute,
+        ConveyorWriteFunction,
+    },
     modbus::{ModbusError, ModbusService},
     web::{api_response::ApiResponse, http_trace::trace_http_request},
 };
@@ -28,6 +31,7 @@ pub fn build_router(modbus_service: Arc<ModbusService>, conveyor: ConveyorConfig
         .route("/health", get(health))
         .route("/api/conveyor/write", post(write_conveyor))
         .route("/api/conveyor/can-putdown", get(can_putdown))
+        .route("/api/conveyor/need-putdown", post(need_putdown))
         .layer(middleware::from_fn(trace_http_request))
         .with_state(AppState {
             modbus_service,
@@ -88,6 +92,21 @@ pub struct ConveyorCanPutdownQuery {
     pub location: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ConveyorNeedPutdownRequest {
+    pub location: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ConveyorNeedPutdownResponse {
+    pub location: String,
+    pub device: String,
+    pub slave_id: u8,
+    pub function: String,
+    pub register_address: u16,
+    pub value: u16,
+}
+
 async fn write_conveyor(
     State(state): State<AppState>,
     Json(request): Json<ConveyorWriteRequest>,
@@ -122,6 +141,28 @@ async fn can_putdown(
     Ok(Json(ApiResponse {
         success: true,
         data: Some(values),
+        message: "ok".to_string(),
+    }))
+}
+
+async fn need_putdown(
+    State(state): State<AppState>,
+    Json(request): Json<ConveyorNeedPutdownRequest>,
+) -> Result<Json<ApiResponse<ConveyorNeedPutdownResponse>>, ApiError> {
+    let route = resolve_need_putdown(&state.conveyor, &request.location)?;
+
+    execute_need_putdown_write(&state.modbus_service, &route).await?;
+
+    Ok(Json(ApiResponse {
+        success: true,
+        data: Some(ConveyorNeedPutdownResponse {
+            location: route.location,
+            device: route.device,
+            slave_id: route.slave_id,
+            function: route.function.as_str().to_string(),
+            register_address: route.register_address,
+            value: route.value,
+        }),
         message: "ok".to_string(),
     }))
 }
@@ -175,6 +216,32 @@ async fn execute_can_putdown_check(
     }
 }
 
+async fn execute_need_putdown_write(
+    modbus_service: &ModbusService,
+    route: &ConveyorNeedPutdownRoute,
+) -> Result<(), ApiError> {
+    match route.function {
+        ConveyorWriteFunction::WriteSingleRegister => {
+            modbus_service
+                .write_single_register(
+                    &route.device,
+                    route.slave_id,
+                    route.register_address,
+                    route.value,
+                )
+                .await?;
+            Ok(())
+        }
+        function => Err(ApiError::new(
+            StatusCode::BAD_REQUEST,
+            format!(
+                "unsupported need-putdown modbus write function: {}",
+                function.as_str()
+            ),
+        )),
+    }
+}
+
 fn resolve_conveyor_write(
     conveyor: &ConveyorConfig,
     source: &str,
@@ -202,6 +269,21 @@ fn resolve_can_putdown(
             ApiError::new(
                 StatusCode::BAD_REQUEST,
                 format!("unknown can-putdown location: {location}"),
+            )
+        })
+}
+
+fn resolve_need_putdown(
+    conveyor: &ConveyorConfig,
+    location: &str,
+) -> Result<ConveyorNeedPutdownRoute, ApiError> {
+    conveyor
+        .find_need_putdown_route(location)
+        .cloned()
+        .ok_or_else(|| {
+            ApiError::new(
+                StatusCode::BAD_REQUEST,
+                format!("unknown need-putdown location: {location}"),
             )
         })
 }
@@ -254,10 +336,10 @@ impl IntoResponse for ApiError {
 
 #[cfg(test)]
 mod tests {
-    use super::{ApiError, resolve_can_putdown, resolve_conveyor_write};
+    use super::{ApiError, resolve_can_putdown, resolve_conveyor_write, resolve_need_putdown};
     use crate::config::{
-        ConveyorConfig, ConveyorReadCheck, ConveyorReadFunction, ConveyorSendRoute,
-        ConveyorWriteFunction,
+        ConveyorConfig, ConveyorNeedPutdownRoute, ConveyorReadCheck, ConveyorReadFunction,
+        ConveyorSendRoute, ConveyorWriteFunction,
     };
     use axum::{Json, http::StatusCode, response::IntoResponse};
     use serde::Deserialize;
@@ -298,6 +380,7 @@ mod tests {
                 value: 6,
             }],
             can_putdown_checks: Vec::new(),
+            need_putdown_routes: Vec::new(),
         };
 
         let route = resolve_conveyor_write(&conveyor, "5104-1-1-1", "5104-1-1-1").unwrap();
@@ -328,6 +411,7 @@ mod tests {
                 register_address: 10,
                 quantity: 1,
             }],
+            need_putdown_routes: Vec::new(),
         };
 
         let check = resolve_can_putdown(&conveyor, "5107-1-1-1").unwrap();
@@ -341,6 +425,38 @@ mod tests {
     #[test]
     fn missing_can_putdown_station_returns_bad_request() {
         let err = resolve_can_putdown(&ConveyorConfig::default(), "UNKNOWN").unwrap_err();
+        let response = err.into_response();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn resolves_need_putdown_location_to_write_route() {
+        let conveyor = ConveyorConfig {
+            send_routes: Vec::new(),
+            can_putdown_checks: Vec::new(),
+            need_putdown_routes: vec![ConveyorNeedPutdownRoute {
+                location: "5107-1-1-1".to_string(),
+                device: "localhost:5000".to_string(),
+                slave_id: 1,
+                function: ConveyorWriteFunction::WriteSingleRegister,
+                register_address: 16,
+                value: 6,
+            }],
+        };
+
+        let route = resolve_need_putdown(&conveyor, "5107-1-1-1").unwrap();
+
+        assert_eq!(route.location, "5107-1-1-1");
+        assert_eq!(route.device, "localhost:5000");
+        assert_eq!(route.function.as_str(), "0x06");
+        assert_eq!(route.register_address, 16);
+        assert_eq!(route.value, 6);
+    }
+
+    #[test]
+    fn missing_need_putdown_location_returns_bad_request() {
+        let err = resolve_need_putdown(&ConveyorConfig::default(), "UNKNOWN").unwrap_err();
         let response = err.into_response();
 
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);

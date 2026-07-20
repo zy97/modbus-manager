@@ -54,6 +54,8 @@ pub struct ConveyorConfig {
     pub send_routes: Vec<ConveyorSendRoute>,
     #[serde(default)]
     pub can_putdown_checks: Vec<ConveyorReadCheck>,
+    #[serde(default)]
+    pub need_putdown_routes: Vec<ConveyorNeedPutdownRoute>,
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
@@ -80,6 +82,18 @@ pub struct ConveyorReadCheck {
     pub register_address: u16,
     #[serde(default = "default_modbus_read_quantity")]
     pub quantity: u16,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq)]
+pub struct ConveyorNeedPutdownRoute {
+    pub location: String,
+    pub device: String,
+    #[serde(default = "default_modbus_slave_id")]
+    pub slave_id: u8,
+    #[serde(default)]
+    pub function: ConveyorWriteFunction,
+    pub register_address: u16,
+    pub value: u16,
 }
 
 #[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
@@ -182,6 +196,12 @@ impl ConveyorConfig {
         self.can_putdown_checks
             .iter()
             .find(|check| check.location == location)
+    }
+
+    pub fn find_need_putdown_route(&self, location: &str) -> Option<&ConveyorNeedPutdownRoute> {
+        self.need_putdown_routes
+            .iter()
+            .find(|route| route.location == location)
     }
 }
 
@@ -306,6 +326,29 @@ mod tests {
     }
 
     #[test]
+    fn conveyor_need_putdown_route_defaults_to_slave_id_one_and_single_register_write() {
+        let route: super::ConveyorNeedPutdownRoute = config::Config::builder()
+            .add_source(config::File::from_str(
+                r#"
+                location = "5107-1-1-1"
+                device = "192.168.70.100:2000"
+                register_address = 16
+                value = 6
+                "#,
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+
+        assert_eq!(route.slave_id, 1);
+        assert_eq!(route.function.as_str(), "0x06");
+        assert_eq!(route.register_address, 16);
+        assert_eq!(route.value, 6);
+    }
+
+    #[test]
     fn conveyor_config_resolves_send_task_write_value_and_register() {
         let config = ConveyorConfig {
             send_routes: vec![super::ConveyorSendRoute {
@@ -318,6 +361,7 @@ mod tests {
                 value: 6,
             }],
             can_putdown_checks: Vec::new(),
+            need_putdown_routes: Vec::new(),
         };
 
         let route = config.find_send_route("5104-1-1-1", "5104-1-1-1").unwrap();
@@ -418,5 +462,29 @@ mod tests {
         assert_eq!(check.device, "192.168.70.100:2000");
         assert_eq!(check.function.as_str(), "0x03");
         assert_eq!(check.register_address, 4);
+    }
+
+    #[test]
+    fn repository_config_contains_legacy_need_putdown_mapping() {
+        let app_config: super::AppConfig = config::Config::builder()
+            .add_source(config::File::from_str(
+                include_str!("../../../config.toml"),
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .unwrap()
+            .try_deserialize()
+            .unwrap();
+
+        let route = app_config
+            .conveyor
+            .find_need_putdown_route("5107-1-1-1")
+            .unwrap();
+
+        assert_eq!(route.location, "5107-1-1-1");
+        assert_eq!(route.device, "192.168.70.100:2000");
+        assert_eq!(route.function.as_str(), "0x06");
+        assert_eq!(route.register_address, 16);
+        assert_eq!(route.value, 6);
     }
 }

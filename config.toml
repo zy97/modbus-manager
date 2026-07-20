@@ -52,3 +52,8 @@ can_putdown_checks = [
     { location = "5103-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 0, quantity = 1 },
     { location = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 0, quantity = 1 },
 ]
+
+need_putdown_routes = [
+    { location = "TEST-NEED-PUTDOWN", device = "127.0.0.1:5000", function = "0x06", register_address = 16, value = 6 },
+    { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 16, value = 6 },
+]
