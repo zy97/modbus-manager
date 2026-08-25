@@ -30,3 +30,7 @@ opentelemetry-appender-tracing = { version = "0.32", features = [
 opentelemetry-http = "0.32"
 opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic"] }
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+

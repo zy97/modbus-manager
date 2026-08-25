@@ -9,9 +9,9 @@ use crate::{
 use axum::{
     Json, Router,
     extract::{Query, State},
-    http::StatusCode,
+    http::{StatusCode, header},
     middleware,
-    response::{IntoResponse, Response},
+    response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
 use reqwest::Client;
@@ -35,6 +35,8 @@ pub fn build_router(modbus_service: Arc<ModbusService>, conveyor: ConveyorConfig
         .route("/api/conveyor/write-success", get(write_success))
         .route("/api/conveyor/can-putdown", get(can_putdown))
         .route("/api/conveyor/need-putdown", post(need_putdown))
+        .route("/openapi.json", get(openapi_spec))
+        .route("/scalar", get(scalar_docs))
         .layer(middleware::from_fn(trace_http_request))
         .with_state(AppState {
             modbus_service,
@@ -82,6 +84,17 @@ async fn health() -> Json<ApiResponse<&'static str>> {
         data: Some("ok"),
         message: "ok".to_string(),
     })
+}
+
+async fn openapi_spec() -> impl IntoResponse {
+    (
+        [(header::CONTENT_TYPE, "application/json")],
+        include_str!("openapi.json"),
+    )
+}
+
+async fn scalar_docs() -> Html<&'static str> {
+    Html(include_str!("scalar.html"))
 }
 
 #[derive(Debug, Deserialize)]
@@ -518,10 +531,19 @@ mod tests {
     };
     use crate::config::{
         ConveyorConfig, ConveyorNeedPutdownRoute, ConveyorReadCheck, ConveyorReadFunction,
-        ConveyorSendRoute, ConveyorSendSuccessCheck, ConveyorWriteFunction,
+        ConveyorSendRoute, ConveyorSendSuccessCheck, ConveyorWriteFunction, ModbusConfig,
     };
-    use axum::{Json, http::StatusCode, response::IntoResponse};
+    use crate::modbus::ModbusService;
+    use axum::http::Request;
+    use axum::{
+        Json,
+        body::{Body, to_bytes},
+        http::StatusCode,
+        response::IntoResponse,
+    };
     use serde::Deserialize;
+    use std::sync::Arc;
+    use tower::ServiceExt;
 
     #[derive(Debug, Deserialize)]
     struct ErrorBody {
@@ -701,5 +723,55 @@ mod tests {
             },
             &[6]
         ));
+    }
+
+    #[tokio::test]
+    async fn openapi_json_returns_openapi_spec() {
+        let router = super::build_router(
+            Arc::new(ModbusService::new(&ModbusConfig::default())),
+            ConveyorConfig::default(),
+        );
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/openapi.json")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let content_type = response.headers().get("content-type").unwrap();
+        assert!(content_type.to_str().unwrap().contains("application/json"));
+
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let text = std::str::from_utf8(&body).unwrap();
+        assert!(text.contains("\"openapi\": \"3.0.3\""));
+    }
+
+    #[tokio::test]
+    async fn scalar_docs_returns_html_page() {
+        let router = super::build_router(
+            Arc::new(ModbusService::new(&ModbusConfig::default())),
+            ConveyorConfig::default(),
+        );
+        let response = router
+            .oneshot(
+                Request::builder()
+                    .uri("/scalar")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let content_type = response.headers().get("content-type").unwrap();
+        assert!(content_type.to_str().unwrap().contains("text/html"));
+
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let text = std::str::from_utf8(&body).unwrap();
+        assert!(text.contains("Scalar"));
     }
 }
