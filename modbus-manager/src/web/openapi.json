@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Modbus Manager API",
-    "description": "HTTP API for the Modbus manager service.",
+    "description": "Modbus 管理服务的 HTTP API，用于向输送线 PLC 下发路由、回读发送结果、检查可放料状态以及通知需要放料。",
     "version": "1.0.0"
   },
   "servers": [
@@ -14,12 +14,14 @@
   "paths": {
     "/health": {
       "get": {
-        "tags": ["Health"],
-        "summary": "Health check",
+        "tags": [
+          "Health"
+        ],
+        "summary": "健康检查",
         "operationId": "healthCheck",
         "responses": {
           "200": {
-            "description": "Service is healthy",
+            "description": "服务运行正常",
             "content": {
               "application/json": {
                 "schema": {
@@ -28,13 +30,16 @@
               }
             }
           }
-        }
+        },
+        "description": "检查服务是否正常运行。"
       }
     },
     "/api/conveyor/write": {
       "post": {
-        "tags": ["Conveyor"],
-        "summary": "Write to a conveyor route",
+        "tags": [
+          "Conveyor"
+        ],
+        "summary": "输送线路由写入",
         "operationId": "writeConveyor",
         "requestBody": {
           "required": true,
@@ -48,7 +53,7 @@
         },
         "responses": {
           "200": {
-            "description": "Write succeeded",
+            "description": "写入成功",
             "content": {
               "application/json": {
                 "schema": {
@@ -58,15 +63,18 @@
             }
           },
           "400": {
-            "description": "Bad request"
+            "description": "请求参数错误或未找到匹配的路由规则"
           }
-        }
+        },
+        "description": "根据请求中的 source（起点）和 destination（终点），在 send_routes 配置中匹配对应规则，并向目标 PLC 写入指定的 Modbus 寄存器值。"
       }
     },
     "/api/conveyor/write-success": {
       "get": {
-        "tags": ["Conveyor"],
-        "summary": "Read send success check values",
+        "tags": [
+          "Conveyor"
+        ],
+        "summary": "发送成功回读",
         "operationId": "writeSuccess",
         "parameters": [
           {
@@ -75,12 +83,13 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "起点位置编码，对应 send_success_checks 中的 source。"
           }
         ],
         "responses": {
           "200": {
-            "description": "Read values",
+            "description": "读取成功",
             "content": {
               "application/json": {
                 "schema": {
@@ -90,15 +99,18 @@
             }
           },
           "400": {
-            "description": "Bad request"
+            "description": "请求参数错误或未找到匹配的回读规则"
           }
-        }
+        },
+        "description": "根据 source（起点）在 send_success_checks 配置中匹配对应规则，读取目标 PLC 的寄存器值，用于确认发送是否成功。"
       }
     },
     "/api/conveyor/can-putdown": {
       "get": {
-        "tags": ["Conveyor"],
-        "summary": "Read can-putdown check values",
+        "tags": [
+          "Conveyor"
+        ],
+        "summary": "可放料检查",
         "operationId": "canPutdown",
         "parameters": [
           {
@@ -107,12 +119,13 @@
             "required": true,
             "schema": {
               "type": "string"
-            }
+            },
+            "description": "位置编码，对应 can_putdown_checks 中的 location。"
           }
         ],
         "responses": {
           "200": {
-            "description": "Read values",
+            "description": "读取成功",
             "content": {
               "application/json": {
                 "schema": {
@@ -122,15 +135,18 @@
             }
           },
           "400": {
-            "description": "Bad request"
+            "description": "请求参数错误或未找到匹配的可放料检查规则"
           }
-        }
+        },
+        "description": "根据 location（位置）在 can_putdown_checks 配置中匹配对应规则，读取目标 PLC 的寄存器值。若首个寄存器值为 6 且配置了 hook_notify，将触发对应 webhook。"
       }
     },
     "/api/conveyor/need-putdown": {
       "post": {
-        "tags": ["Conveyor"],
-        "summary": "Write need-putdown route",
+        "tags": [
+          "Conveyor"
+        ],
+        "summary": "需要放料通知",
         "operationId": "needPutdown",
         "requestBody": {
           "required": true,
@@ -144,7 +160,7 @@
         },
         "responses": {
           "200": {
-            "description": "Write succeeded",
+            "description": "写入成功",
             "content": {
               "application/json": {
                 "schema": {
@@ -154,9 +170,10 @@
             }
           },
           "400": {
-            "description": "Bad request"
+            "description": "请求参数错误或未找到匹配的放料规则"
           }
-        }
+        },
+        "description": "根据请求中的 location（位置）在 need_putdown_routes 配置中匹配对应规则，并向目标 PLC 写入指定的 Modbus 寄存器值。"
       }
     }
   },
@@ -166,70 +183,95 @@
         "type": "object",
         "properties": {
           "success": {
+            "description": "请求是否成功。",
             "type": "boolean"
           },
           "data": {
+            "description": "返回数据，健康检查固定为 \"ok\"。",
             "type": "string"
           },
           "message": {
+            "description": "提示信息。",
             "type": "string"
           }
         },
-        "required": ["success", "message"]
+        "required": [
+          "success",
+          "message"
+        ]
       },
       "ApiResponseU16Array": {
         "type": "object",
         "properties": {
           "success": {
+            "description": "请求是否成功。",
             "type": "boolean"
           },
           "data": {
-            "type": "array",
+            "description": "从 PLC 读取到的寄存器值数组。",
             "items": {
+              "description": "寄存器读取值",
               "type": "integer"
-            }
+            },
+            "type": "array"
           },
           "message": {
+            "description": "提示信息。",
             "type": "string"
           }
         },
-        "required": ["success", "message"]
+        "required": [
+          "success",
+          "message"
+        ]
       },
       "ConveyorWriteRequest": {
         "type": "object",
         "properties": {
           "source": {
+            "description": "起点位置编码，对应 send_routes 中的 source。",
             "type": "string"
           },
           "destination": {
+            "description": "终点位置编码，对应 send_routes 中的 destination。",
             "type": "string"
           }
         },
-        "required": ["source", "destination"]
+        "required": [
+          "source",
+          "destination"
+        ]
       },
       "ConveyorWriteResponse": {
         "type": "object",
         "properties": {
           "source": {
-            "type": "string"
+            "type": "string",
+            "description": "起点位置编码。"
           },
           "destination": {
-            "type": "string"
+            "type": "string",
+            "description": "终点位置编码。"
           },
           "device": {
-            "type": "string"
+            "type": "string",
+            "description": "实际通信的 PLC 设备地址。"
           },
           "slave_id": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Modbus 从机 ID。"
           },
           "function": {
-            "type": "string"
+            "type": "string",
+            "description": "使用的 Modbus 功能码。"
           },
           "register_address": {
-            "type": "integer"
+            "type": "integer",
+            "description": "写入的寄存器地址。"
           },
           "value": {
-            "type": "integer"
+            "type": "integer",
+            "description": "写入的寄存器值。"
           }
         },
         "required": [
@@ -246,46 +288,61 @@
         "type": "object",
         "properties": {
           "success": {
+            "description": "请求是否成功。",
             "type": "boolean"
           },
           "data": {
+            "description": "写入操作的详细结果。",
             "$ref": "#/components/schemas/ConveyorWriteResponse"
           },
           "message": {
+            "description": "提示信息。",
             "type": "string"
           }
         },
-        "required": ["success", "message"]
+        "required": [
+          "success",
+          "message"
+        ]
       },
       "ConveyorNeedPutdownRequest": {
         "type": "object",
         "properties": {
           "location": {
+            "description": "位置编码，对应 need_putdown_routes 中的 location。",
             "type": "string"
           }
         },
-        "required": ["location"]
+        "required": [
+          "location"
+        ]
       },
       "ConveyorNeedPutdownResponse": {
         "type": "object",
         "properties": {
           "location": {
-            "type": "string"
+            "type": "string",
+            "description": "位置编码。"
           },
           "device": {
-            "type": "string"
+            "type": "string",
+            "description": "实际通信的 PLC 设备地址。"
           },
           "slave_id": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Modbus 从机 ID。"
           },
           "function": {
-            "type": "string"
+            "type": "string",
+            "description": "使用的 Modbus 功能码。"
           },
           "register_address": {
-            "type": "integer"
+            "type": "integer",
+            "description": "写入的寄存器地址。"
           },
           "value": {
-            "type": "integer"
+            "type": "integer",
+            "description": "写入的寄存器值。"
           }
         },
         "required": [
@@ -301,16 +358,22 @@
         "type": "object",
         "properties": {
           "success": {
+            "description": "请求是否成功。",
             "type": "boolean"
           },
           "data": {
+            "description": "写入操作的详细结果。",
             "$ref": "#/components/schemas/ConveyorNeedPutdownResponse"
           },
           "message": {
+            "description": "提示信息。",
             "type": "string"
           }
         },
-        "required": ["success", "message"]
+        "required": [
+          "success",
+          "message"
+        ]
       }
     }
   }

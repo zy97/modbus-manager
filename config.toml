@@ -12,6 +12,19 @@ max_connect_attempts = 3
 pool_max_size = 1
 
 [conveyor]
+# 输送线控制配置：根据起点/终点或位置，向 PLC 读写 Modbus 寄存器，实现输送线路由下发、
+# 发送成功回读、可放料检查及需要放料通知。
+
+# 输送线路由下发规则。
+# 当 /api/conveyor/write 请求中的 source 与 destination 匹配某一项时，向对应 PLC 的指定寄存器写入 value。
+# 每一项字段说明：
+#   source           - 起点位置编码
+#   destination      - 终点位置编码
+#   device           - PLC 设备地址，格式为 "IP:端口"
+#   slave_id         - Modbus 从机 ID，默认为 1
+#   function         - Modbus 写入功能码：0x05(写单线圈)、0x06(写单寄存器)、0x0F(写多线圈)、0x10(写多寄存器)，默认为 0x06
+#   register_address - 要写入的寄存器地址
+#   value            - 要写入的值
 send_routes = [
     # 2楼成品流水线,起点终点相同不通过
     { source = "TEST-SOURCE", destination = "TEST-DEST", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 6 },
@@ -77,6 +90,16 @@ send_routes = [
     { source = "RLYSSXRA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
 ]
 
+
+# 发送成功回读检查。
+# 当 /api/conveyor/write 写入完成后，根据 source 找到对应 PLC，读取指定寄存器以确认写入是否成功。
+# 每一项字段说明：
+#   source           - 起点位置编码
+#   device           - PLC 设备地址，格式为 "IP:端口"
+#   slave_id         - Modbus 从机 ID，默认为 1
+#   function         - Modbus 读取功能码：0x01(读线圈)、0x02(读离散输入)、0x03(读保持寄存器)、0x04(读输入寄存器)，默认为 0x03
+#   register_address - 要读取的寄存器地址
+#   quantity         - 要读取的寄存器数量，默认为 1
 send_success_checks = [
     { source = "TEST-SOURCE", device = "127.0.0.1:5000", function = "0x03", register_address = 10, quantity = 1 },
     { source = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 3, quantity = 1 },
@@ -92,20 +115,54 @@ send_success_checks = [
     { source = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x03", register_address = 17, quantity = 1 },
 ]
 
+
+# 可放料检查。
+# /api/conveyor/can-putdown 根据 location 轮询对应 PLC 的寄存器，判断该位置是否可以放料。
+# 当读取到的第一个寄存器值为 6 且配置了 hook_notify 时，会触发对应的 webhook 通知。
+# 每一项字段说明：
+#   location         - 检查的位置编码
+#   device           - PLC 设备地址，格式为 "IP:端口"
+#   slave_id         - Modbus 从机 ID，默认为 1
+#   function         - Modbus 读取功能码，默认为 0x03
+#   register_address - 要读取的寄存器地址
+#   quantity         - 要读取的寄存器数量，默认为 1
+#   hook_notify      - 可选，触发 webhook 的名称，与 webhooks 中的 name 对应
 can_putdown_checks = [
-    { location = "TEST-LOCATION", device = "127.0.0.1:5000", function = "0x03", register_address = 10, quantity = 1, hook_notify = "can-putdown-test" },
-    { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 4, quantity = 1 },
-    { location = "5103-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 0, quantity = 1 },
-    { location = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 0, quantity = 1 },
-    { location = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 1, quantity = 1 ,hook_notify = "成品拆箱回库"},
+    # { location = "TEST-LOCATION", device = "127.0.0.1:5000", function = "0x03", register_address = 10, quantity = 1, hook_notify = "can-putdown-test" },
+    # { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 4, quantity = 1 },
+    # { location = "5103-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 0, quantity = 1 },
+    # { location = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 0, quantity = 1 },
+    # { location = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 1, quantity = 1 ,hook_notify = "成品拆箱回库"},
+    # M1线入库：PLC给上位机可放料信号（D0=6可放料，D0=16不可放料）
+    { location = "M1线入口", device = "192.168.70.233:502", function = "0x03", register_address = 40000, quantity = 1 },
 ]
 
+
+# Webhook 回调配置。
+# 当可放料检查(can_putdown_checks)满足触发条件(首个寄存器值为 6 且 hook_notify 非空)时，
+# 向对应的 url 发送 POST 通知，请求体为 { "location": "...", "values": [...] }。
+# 每一项字段说明：
+#   name - webhook 名称，与 can_putdown_checks 中的 hook_notify 对应
+#   url  - 回调地址
 webhooks = [
     { name = "can-putdown-test", url = "http://localhost:5254/Conveyor/CanPutdownCallback" },
     { name = "成品拆箱回库", url = "http://127.0.0.1:9002/Conveyor/FinishedPartsSplitedReturnCallback" },
 ]
 
+
+# 需要放料时的写入规则。
+# 当 /api/conveyor/need-putdown 请求中的 location 匹配某一项时，向对应 PLC 的指定寄存器写入 value。
+# 每一项字段说明：
+#   location         - 位置编码
+#   device           - PLC 设备地址，格式为 "IP:端口"
+#   slave_id         - Modbus 从机 ID，默认为 1
+#   function         - Modbus 写入功能码，默认为 0x06
+#   register_address - 要写入的寄存器地址
+#   value            - 要写入的值
 need_putdown_routes = [
     { location = "TEST-NEED-PUTDOWN", device = "127.0.0.1:5000", function = "0x06", register_address = 16, value = 6 },
     { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 16, value = 6 },
+    # M1线入库：上位机给PLC返回信号（D1=7放料中，D1=17放料完成）
+    { location = "M1线入口-放料中", device = "192.168.70.233:502", function = "0x06", register_address = 40001, value = 7 },
+    { location = "M1线入口-放料完成", device = "192.168.70.233:502", function = "0x06", register_address = 40001, value = 17 },
 ]
