@@ -89,24 +89,30 @@ send_routes = [
     { source = "R001A00006", destination = "二期二楼成品流水线出口", device = "192.168.70.233:2000", function = "0x06", register_address = 6, value = 16 },
     # M5线扫码器入口  成品流水线靠过道扫码器-R001A00005
     { source = "R001A00005", destination = "二期二楼成品流水线出口", device = "192.168.70.233:2000", function = "0x06", register_address = 8, value = 16 },
+    { source = "二期二楼成品流水线出口", destination = "二期二楼成品流水线出口", device = "192.168.70.233:2000", function = "0x06", register_address = 9, value = 6 },
     # 二楼M4线入口
     # 拆箱区-R001A00002  翻包区-R001A00004  产线-5021-1-1-1   打油区-R001A00001  二楼半成品流水线远离墙出口-R002A01011    二楼半成品流水线靠墙墙出口-R003A01011
     # 二楼半成品主工作台扫码器-R001A01011
     { source = "R001A01011", destination = "R001A00002", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 1 },
     { source = "R001A01011", destination = "R001A00004", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 2 },
     { source = "R001A01011", destination = "5021-1-1-1", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 2 },
+    { source = "5021-1-1-1", destination = "5021-1-1-1", device = "192.168.70.235:2000", function = "0x06", register_address = 19, value = 6 },
     { source = "R001A01011", destination = "R001A00001", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 3 },
     { source = "R001A01011", destination = "R002A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 4 },
+    { source = "R002A01011", destination = "R002A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 18, value = 6 },
+    { source = "R002A01011", destination = "R003A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 18, value = 6 },
     { source = "R001A01011", destination = "R003A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 4 },
+    { source = "R003A01011", destination = "R003A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 17, value = 6 },
+    { source = "R003A01011", destination = "R002A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 17, value = 6 },
     # 二楼M9分流口   二楼半成品流水线T路口扫码器-R001A00007
     { source = "R001A00007", destination = "R001A00002", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 1 },
     { source = "R001A00007", destination = "R002A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 2 },
     { source = "R001A00007", destination = "R003A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 2 },
     # 一楼M26线入口  翻包区-R001A00003
     { source = "R001A00003", destination = "5021-1-1-1", device = "192.168.70.235:2000", function = "0x06", register_address = 11, value = 1 },
-    { source = "R001A00003", destination = "R001A00002", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 2 },
-    { source = "R001A00003", destination = "R002A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 2 },
-    { source = "R001A00003", destination = "R003A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 2 },
+    { source = "R001A00003", destination = "R001A00002", device = "192.168.70.235:2000", function = "0x06", register_address = 11, value = 2 },
+    { source = "R001A00003", destination = "R002A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 11, value = 2 },
+    { source = "R001A00003", destination = "R003A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 11, value = 2 },
     # 一楼升降机出口   一楼升降机出口-R001A00008
     { source = "R001A00008", destination = "5021-1-1-1", device = "192.168.70.235:2000", function = "0x06", register_address = 13, value = 1 },
     { source = "R001A00008", destination = "R001A00004", device = "192.168.70.235:2000", function = "0x06", register_address = 13, value = 2 },
