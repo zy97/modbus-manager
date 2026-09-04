@@ -26,68 +26,86 @@ pool_max_size = 1
 #   register_address - 要写入的寄存器地址
 #   value            - 要写入的值
 send_routes = [
-    # 2楼成品流水线,起点终点相同不通过
-    { source = "TEST-SOURCE", destination = "TEST-DEST", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 6 },
-    # 2楼成品流水线,起点终点不相同就通过，拆完箱之后终点会变
-    { source = "TEST-SOURCE", destination = "TEST-DEST1", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 16 },
-    # 2楼成品流水线,起点终点相同不通过
-    { source = "5104-1-1-1", destination = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 6 },
-    # 2楼成品流水线,起点终点不相同就通过，拆完箱之后终点会变
-    { source = "5104-1-1-1", destination = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 16 },
-    # 2楼半成品流水线副出口送至一楼入库接驳点
-    { source = "5501-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },
-    # 2楼半成品流水线副出口送至一楼翻包区
-    { source = "5501-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },
-    # 2楼半成品流水线主出口送至一楼入库接驳点
-    { source = "5103-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 16 },
-    # 2楼半成品流水线主出口送至一楼翻包区
-    { source = "5103-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 16 },
-    # 2楼半成品流水线主出口送至拆箱区,到时候再改成5
-    { source = "5103-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 6 },
-    # 2楼半成品流水线主出口送至负拆箱区
-    { source = "5103-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 6 },
-    # 2楼半成品流水线主出口送至靠近机房入库点
-    { source = "5103-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 26 },
-    # 2楼半成品流水线主出口送至离近机房入库点
-    { source = "5103-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 26 },
-    # 2楼半成品流水线交叉口送至拆箱区
-    { source = "5502-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 6 },
-    # 2楼半成品流水线交叉口送至负拆箱区
-    { source = "5502-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 6 },
-    # 2楼半成品流水线交叉口送至靠近机房入库点
-    { source = "5502-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 26 },
-    # 2楼半成品流水线交叉口送远离近机房入库点
-    { source = "5502-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 16 },
-    # 2楼半成品流水线靠近机房入库点到终点
-    { source = "5101-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 18, value = 6 },
-    # 2楼半成品流水线远离机房入库点到终点
-    { source = "5102-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 6 },
-    # 1楼流水线出口到翻包区
-    { source = "5106-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 13, value = 6 },
-    # 1楼流水线出口到出口点
-    { source = "5106-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 13, value = 16 },
-    # 1楼流水线入口到翻包区
-    { source = "5107-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 6 },
-    # 1楼流水线入口到主拆箱区
-    { source = "5107-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
-    # 1楼流水线入口到负拆箱区
-    { source = "5107-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
-    # 1楼流水线入口到2楼出库接驳点
-    { source = "5107-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
-    # 1楼流水线入口到2楼出库接驳点
-    { source = "5107-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
-    # 1楼翻包区到一楼入库接驳点
-    { source = "5503-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 6 },
-    # 1楼翻包区到2楼拆箱区
-    { source = "5503-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
-    # 1楼翻包区到2楼入库接驳点
-    { source = "5503-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
-    # 1楼翻包区到2楼入库接驳点
-    { source = "5503-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
-    # todo 公司测试海康流程
-    { source = "RLYSSXCA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
-    # todo 二期一楼,二楼流水线映射配置的还未适配
-    { source = "RLYSSXRA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
+    # # 2楼成品流水线,起点终点相同不通过
+    # { source = "TEST-SOURCE", destination = "TEST-DEST", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 6 },
+    # # 2楼成品流水线,起点终点不相同就通过，拆完箱之后终点会变
+    # { source = "TEST-SOURCE", destination = "TEST-DEST1", device = "127.0.0.1:5000", function = "0x06", register_address = 10, value = 16 },
+    # # 2楼成品流水线,起点终点相同不通过
+    # { source = "5104-1-1-1", destination = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 6 },
+    # # 2楼成品流水线,起点终点不相同就通过，拆完箱之后终点会变
+    # { source = "5104-1-1-1", destination = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x06", register_address = 10, value = 16 },
+    # # 2楼半成品流水线副出口送至一楼入库接驳点
+    # { source = "5501-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },
+    # # 2楼半成品流水线副出口送至一楼翻包区
+    # { source = "5501-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 10, value = 6 },
+    # # 2楼半成品流水线主出口送至一楼入库接驳点
+    # { source = "5103-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 16 },
+    # # 2楼半成品流水线主出口送至一楼翻包区
+    # { source = "5103-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 16 },
+    # # 2楼半成品流水线主出口送至拆箱区,到时候再改成5
+    # { source = "5103-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 6 },
+    # # 2楼半成品流水线主出口送至负拆箱区
+    # { source = "5103-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 6 },
+    # # 2楼半成品流水线主出口送至靠近机房入库点
+    # { source = "5103-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 26 },
+    # # 2楼半成品流水线主出口送至离近机房入库点
+    # { source = "5103-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 11, value = 26 },
+    # # 2楼半成品流水线交叉口送至拆箱区
+    # { source = "5502-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 6 },
+    # # 2楼半成品流水线交叉口送至负拆箱区
+    # { source = "5502-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 6 },
+    # # 2楼半成品流水线交叉口送至靠近机房入库点
+    # { source = "5502-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 26 },
+    # # 2楼半成品流水线交叉口送远离近机房入库点
+    # { source = "5502-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 12, value = 16 },
+    # # 2楼半成品流水线靠近机房入库点到终点
+    # { source = "5101-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 18, value = 6 },
+    # # 2楼半成品流水线远离机房入库点到终点
+    # { source = "5102-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 6 },
+    # # 1楼流水线出口到翻包区
+    # { source = "5106-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 13, value = 6 },
+    # # 1楼流水线出口到出口点
+    # { source = "5106-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 13, value = 16 },
+    # # 1楼流水线入口到翻包区
+    # { source = "5107-1-1-1", destination = "5504-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 6 },
+    # # 1楼流水线入口到主拆箱区
+    # { source = "5107-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    # # 1楼流水线入口到负拆箱区
+    # { source = "5107-1-1-1", destination = "5507-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    # # 1楼流水线入口到2楼出库接驳点
+    # { source = "5107-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    # # 1楼流水线入口到2楼出库接驳点
+    # { source = "5107-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 14, value = 16 },
+    # # 1楼翻包区到一楼入库接驳点
+    # { source = "5503-1-1-1", destination = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 6 },
+    # # 1楼翻包区到2楼拆箱区
+    # { source = "5503-1-1-1", destination = "5505-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    # # 1楼翻包区到2楼入库接驳点
+    # { source = "5503-1-1-1", destination = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    # # 1楼翻包区到2楼入库接驳点
+    # { source = "5503-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
+    # # todo 公司测试海康流程
+    # { source = "RLYSSXCA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
+    # # todo 二期一楼,二楼流水线映射配置的还未适配
+    # { source = "RLYSSXRA01011", destination = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x06", register_address = 17, value = 16 },
+    # M2线扫码器入口
+    { source = "成品流水线靠墙扫码器", destination = "成品流水线出口", device = "192.168.70.233:2000", function = "0x06", register_address = 6, value = 16 },
+    # M5线扫码器入口
+    { source = "成品流水线靠过道扫码器", destination = "成品流水线出口", device = "192.168.70.233:2000", function = "0x06", register_address = 8, value = 16 },
+    # 二楼M4线入口
+    { source = "二楼半成品主工作台扫码器", destination = "拆箱区", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 1 },
+    { source = "二楼半成品主工作台扫码器", destination = "翻包区", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 2 },
+    { source = "二楼半成品主工作台扫码器", destination = "产线", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 2 },
+    { source = "二楼半成品主工作台扫码器", destination = "打油区", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 3 },
+    { source = "二楼半成品主工作台扫码器", destination = "二楼半成品流水线远离墙出口", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 4 },
+    { source = "二楼半成品主工作台扫码器", destination = "二楼半成品流水线靠墙墙出口", device = "192.168.70.235:2000", function = "0x06", register_address = 1, value = 4 },
+    # 二楼M9分流口
+    { source = "二楼半成品流水线T路口扫码器", destination = "拆箱区", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 1 },
+    { source = "二楼半成品流水线T路口扫码器", destination = "二楼半成品流水线远离墙出口", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 2 },
+    { source = "二楼半成品流水线T路口扫码器", destination = "二楼半成品流水线靠墙墙出口", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 2 },
+    # 一楼M26线入口
+    { source = "翻包区", destination = "拆箱区", device = "192.168.70.235:2000", function = "0x06", register_address = 5, value = 1 },
+
 ]
 
 
@@ -101,18 +119,18 @@ send_routes = [
 #   register_address - 要读取的寄存器地址
 #   quantity         - 要读取的寄存器数量，默认为 1
 send_success_checks = [
-    { source = "TEST-SOURCE", device = "127.0.0.1:5000", function = "0x03", register_address = 10, quantity = 1 },
-    { source = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 3, quantity = 1 },
-    { source = "5502-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 22, quantity = 1 },
-    { source = "5503-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 25, quantity = 1 },
-    { source = "5501-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 20, quantity = 1 },
-    { source = "5103-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 21, quantity = 1 },
-    { source = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 23, quantity = 1 },
-    { source = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 24, quantity = 1 },
-    { source = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 8, quantity = 1 },
-    { source = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 7, quantity = 1 },
-    { source = "RLYSSXCA01011", device = "192.168.70.100:2000", function = "0x03", register_address = 17, quantity = 1 },
-    { source = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x03", register_address = 17, quantity = 1 },
+    # { source = "TEST-SOURCE", device = "127.0.0.1:5000", function = "0x03", register_address = 10, quantity = 1 },
+    # { source = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 3, quantity = 1 },
+    # { source = "5502-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 22, quantity = 1 },
+    # { source = "5503-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 25, quantity = 1 },
+    # { source = "5501-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 20, quantity = 1 },
+    # { source = "5103-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 21, quantity = 1 },
+    # { source = "5106-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 23, quantity = 1 },
+    # { source = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 24, quantity = 1 },
+    # { source = "5101-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 8, quantity = 1 },
+    # { source = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 7, quantity = 1 },
+    # { source = "RLYSSXCA01011", device = "192.168.70.100:2000", function = "0x03", register_address = 17, quantity = 1 },
+    # { source = "RLYSSXRA01011", device = "192.168.70.100:2000", function = "0x03", register_address = 17, quantity = 1 },
 ]
 
 
@@ -134,7 +152,20 @@ can_putdown_checks = [
     # { location = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 0, quantity = 1 },
     # { location = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 1, quantity = 1 ,hook_notify = "成品拆箱回库"},
     # M1线入库：PLC给上位机可放料信号（D0=6可放料，D0=16不可放料）
-    { location = "M1线入口", device = "192.168.70.233:502", function = "0x03", register_address = 40000, quantity = 1 },
+    # { location = "M1线入口", device = "192.168.70.233:502", function = "0x03", register_address = 40000, quantity = 1 },
+
+    # 成品区域流水线
+    # M1线入口
+    { location = "成品流水线靠墙入口", device = "192.168.70.233:2000", function = "0x03", register_address = 0, quantity = 1 },
+    # M6线入口
+    { location = "成品流水线靠过道入口", device = "192.168.70.233:2000", function = "0x03", register_address = 2, quantity = 1 },
+
+    # 半成品区域流水线
+    # 二楼M4线入口
+    { location = "半成品二楼流水线入口", device = "192.168.70.235:2000", function = "0x03", register_address = 2, quantity = 1 },
+    #一楼M25线入口
+    { location = "半成品一楼流水线入口", device = "192.168.70.235:2000", function = "0x03", register_address = 16, quantity = 1 },
+
 ]
 
 
@@ -160,9 +191,9 @@ webhooks = [
 #   register_address - 要写入的寄存器地址
 #   value            - 要写入的值
 need_putdown_routes = [
-    { location = "TEST-NEED-PUTDOWN", device = "127.0.0.1:5000", function = "0x06", register_address = 16, value = 6 },
-    { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 16, value = 6 },
-    # M1线入库：上位机给PLC返回信号（D1=7放料中，D1=17放料完成）
-    { location = "M1线入口-放料中", device = "192.168.70.233:502", function = "0x06", register_address = 40001, value = 7 },
-    { location = "M1线入口-放料完成", device = "192.168.70.233:502", function = "0x06", register_address = 40001, value = 17 },
+    # { location = "TEST-NEED-PUTDOWN", device = "127.0.0.1:5000", function = "0x06", register_address = 16, value = 6 },
+    # { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 16, value = 6 },
+    # # M1线入库：上位机给PLC返回信号（D1=7放料中，D1=17放料完成）
+    # { location = "M1线入口-放料中", device = "192.168.70.233:502", function = "0x06", register_address = 40001, value = 7 },
+    # { location = "M1线入口-放料完成", device = "192.168.70.233:502", function = "0x06", register_address = 40001, value = 17 },
 ]
