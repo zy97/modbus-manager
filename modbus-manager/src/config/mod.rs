@@ -46,6 +46,8 @@ pub struct ModbusConfig {
     pub max_connect_attempts: usize,
     #[serde(default = "default_modbus_pool_max_size")]
     pub pool_max_size: usize,
+    #[serde(default = "default_modbus_operation_timeout_ms")]
+    pub operation_timeout_ms: u64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -188,6 +190,7 @@ impl Default for ModbusConfig {
             reconnect_delay_ms: default_modbus_reconnect_delay_ms(),
             max_connect_attempts: default_modbus_max_connect_attempts(),
             pool_max_size: default_modbus_pool_max_size(),
+            operation_timeout_ms: default_modbus_operation_timeout_ms(),
         }
     }
 }
@@ -207,6 +210,9 @@ impl ModbusConfig {
 
     pub fn pool_max_size(&self) -> usize {
         self.pool_max_size.max(1)
+    }
+    pub fn operation_timeout(&self) -> Duration {
+        Duration::from_millis(self.operation_timeout_ms)
     }
 }
 
@@ -288,6 +294,9 @@ fn default_modbus_max_connect_attempts() -> usize {
 
 fn default_modbus_pool_max_size() -> usize {
     1
+}
+fn default_modbus_operation_timeout_ms() -> u64 {
+    5000
 }
 
 fn default_modbus_slave_id() -> u8 {
@@ -451,6 +460,14 @@ mod tests {
         assert_eq!(check.slave_id, 1);
         assert_eq!(check.function.as_str(), "0x03");
         assert_eq!(check.quantity, 1);
+    }
+
+    #[test]
+    fn modbus_config_defaults_include_operation_timeout() {
+        let config = super::ModbusConfig::default();
+
+        assert_eq!(config.operation_timeout_ms, 5000);
+        assert_eq!(config.operation_timeout(), std::time::Duration::from_millis(5000));
     }
 
     #[test]

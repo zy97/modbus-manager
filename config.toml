@@ -10,6 +10,7 @@ connect_timeout_ms = 1000
 reconnect_delay_ms = 500
 max_connect_attempts = 3
 pool_max_size = 1
+operation_timeout_ms = 5000
 
 [conveyor]
 # 输送线控制配置：根据起点/终点或位置，向 PLC 读写 Modbus 寄存器，实现输送线路由下发、

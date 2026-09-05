@@ -4,6 +4,7 @@ use crate::{
 };
 use deadpool::managed::Object;
 use std::{collections::HashMap, hash::Hash, sync::RwLock};
+use tokio::time::timeout;
 use tokio_modbus::prelude::*;
 use tracing::{info, warn};
 
@@ -58,26 +59,37 @@ impl ModbusService {
         value: u16,
     ) -> Result<(), ModbusError> {
         let mut connection = self.connection(address, slave_id).await?;
+        let operation_timeout = connection.operation_timeout;
 
-        match connection
-            .context
-            .write_single_register(register_address, value)
-            .await
+        match timeout(
+            operation_timeout,
+            connection.context.write_single_register(register_address, value),
+        )
+        .await
         {
-            Ok(Ok(())) => Ok(()),
-            Ok(Err(exception)) => Err(ModbusError::WriteException(
+            Ok(Ok(Ok(()))) => Ok(()),
+            Ok(Ok(Err(exception))) => Err(ModbusError::WriteException(
                 address.to_string(),
                 register_address,
                 value,
                 format!("{exception:?}"),
             )),
-            Err(err) => {
+            Ok(Err(err)) => {
                 connection.status = false;
                 Err(ModbusError::WriteTransport(
                     address.to_string(),
                     register_address,
                     value,
                     err.to_string(),
+                ))
+            }
+            Err(_) => {
+                connection.status = false;
+                Err(ModbusError::WriteTransport(
+                    address.to_string(),
+                    register_address,
+                    value,
+                    "operation timeout".to_string(),
                 ))
             }
         }
@@ -91,26 +103,39 @@ impl ModbusService {
         quantity: u16,
     ) -> Result<Vec<u16>, ModbusError> {
         let mut connection = self.connection(address, slave_id).await?;
+        let operation_timeout = connection.operation_timeout;
 
-        match connection
-            .context
-            .read_holding_registers(register_address, quantity)
-            .await
+        match timeout(
+            operation_timeout,
+            connection
+                .context
+                .read_holding_registers(register_address, quantity),
+        )
+        .await
         {
-            Ok(Ok(values)) => Ok(values),
-            Ok(Err(exception)) => Err(ModbusError::ReadException(
+            Ok(Ok(Ok(values))) => Ok(values),
+            Ok(Ok(Err(exception))) => Err(ModbusError::ReadException(
                 address.to_string(),
                 register_address,
                 quantity,
                 format!("{exception:?}"),
             )),
-            Err(err) => {
+            Ok(Err(err)) => {
                 connection.status = false;
                 Err(ModbusError::ReadTransport(
                     address.to_string(),
                     register_address,
                     quantity,
                     err.to_string(),
+                ))
+            }
+            Err(_) => {
+                connection.status = false;
+                Err(ModbusError::ReadTransport(
+                    address.to_string(),
+                    register_address,
+                    quantity,
+                    "operation timeout".to_string(),
                 ))
             }
         }
@@ -160,6 +185,7 @@ fn build_modbus_pool(address: &str, slave_id: u8, config: &ModbusConfig) -> Pool
         connect_timeout: config.connect_timeout(),
         reconnect_delay: config.reconnect_delay(),
         max_connect_attempts: config.max_connect_attempts(),
+        operation_timeout: config.operation_timeout(),
     })
     .max_size(config.pool_max_size())
     .build()

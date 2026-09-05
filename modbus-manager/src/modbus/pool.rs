@@ -13,6 +13,7 @@ pub struct ModbusManager {
     pub connect_timeout: Duration,
     pub reconnect_delay: Duration,
     pub max_connect_attempts: usize,
+    pub operation_timeout: Duration,
 }
 
 pub struct ManagedConnection {
@@ -20,6 +21,7 @@ pub struct ManagedConnection {
     pub slave_id: u8,
     pub context: Context,
     pub status: bool,
+    pub operation_timeout: Duration,
     disconnected_logged: bool,
 }
 
@@ -67,6 +69,7 @@ impl managed::Manager for ModbusManager {
                         slave_id: self.slave_id,
                         context,
                         status: true,
+                        operation_timeout: self.operation_timeout,
                         disconnected_logged: false,
                     });
                 }
@@ -216,6 +219,7 @@ mod tests {
             connect_timeout: Duration::from_millis(10),
             reconnect_delay: Duration::from_millis(1),
             max_connect_attempts: 1,
+            operation_timeout: Duration::from_millis(50),
         }
     }
 }
