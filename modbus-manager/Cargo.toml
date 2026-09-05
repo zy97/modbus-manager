@@ -1,6 +1,6 @@
 [package]
 name = "modbus-manager"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 description = "Modbus manager service"
 repository = "https://github.com/zy97/modbus-manager"
@@ -33,4 +33,3 @@ opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
-
