@@ -1,6 +1,6 @@
 [package]
 name = "modbus-manager"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2024"
 description = "Modbus manager service"
 repository = "https://github.com/zy97/modbus-manager"
