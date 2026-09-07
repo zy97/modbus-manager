@@ -82,11 +82,13 @@ send_routes = [
     # 1楼翻包区到2楼入库接驳点
     { source = "5503-1-1-1", destination = "5102-1-1-1", device = "192.168.70.100:2000", function = "0x06", register_address = 15, value = 16 },
 
-    # M2线扫码器入口  成品流水线靠墙扫码器-R001A00006   二期二楼成品流水线出口-R001A000010
-    { source = "R001A00006", destination = "R001A000010", device = "192.168.70.233:2000", function = "0x06", register_address = 6, value = 16 },
-    # M5线扫码器入口  成品流水线靠过道扫码器-R001A00005
-    { source = "R001A00005", destination = "R001A000010", device = "192.168.70.233:2000", function = "0x06", register_address = 8, value = 16 },
-    { source = "R001A000010", destination = "R001A000010", device = "192.168.70.233:2000", function = "0x06", register_address = 9, value = 6 },
+    # M2线扫码器入口  成品流水线靠墙扫码器-R006A01011   二期二楼成品流水线出口-R005A01011
+    { source = "R006A01011", destination = "R005A01011", device = "192.168.70.237:2000", function = "0x06", register_address = 6, value = 16 },
+    { source = "R006A01011", destination = "R006A01011", device = "192.168.70.237:2000", function = "0x06", register_address = 6, value = 6 },
+    # M5线扫码器入口  成品流水线靠过道扫码器-R004A01011
+    { source = "R004A01011", destination = "R005A01011", device = "192.168.70.237:2000", function = "0x06", register_address = 8, value = 16 },
+    { source = "R004A01011", destination = "R004A01011", device = "192.168.70.237:2000", function = "0x06", register_address = 8, value = 6 },
+    { source = "R005A01011", destination = "R005A01011", device = "192.168.70.237:2000", function = "0x06", register_address = 9, value = 6 },
     # 二楼M4线入口
     # 拆箱区-R001A00002  翻包区-R001A00004  产线-5021-1-1-1   打油区-R001A00001  二楼半成品流水线远离墙出口-R002A01011    二楼半成品流水线靠墙墙出口-R003A01011
     # 二楼半成品主工作台扫码器-R001A01011
