@@ -153,10 +153,19 @@ send_success_checks = [
 #   quantity         - 要读取的寄存器数量，默认为 1
 #   hook_notify      - 可选，触发 webhook 的名称，与 webhooks 中的 name 对应
 can_putdown_checks = [
-    # { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 4, quantity = 1 },
-    # { location = "5103-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 0, quantity = 1 },
-    # { location = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 0, quantity = 1 },
+    { location = "5107-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 4, quantity = 1 },
+    { location = "5103-1-1-1", device = "192.168.70.100:2000", function = "0x03", register_address = 0, quantity = 1 },
+    { location = "5104-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 0, quantity = 1 },
     { location = "5105-1-1-1", device = "192.168.70.102:2000", function = "0x03", register_address = 1, quantity = 1 ,hook_notify = "成品拆箱回库"},
+
+    # 二期靠过道流水线入口
+    { location = "R004A01011", device = "192.168.70.237:2000", function = "0x03", register_address = 2, quantity = 1 },
+    # 二期靠墙流水线入口
+    { location = "R006A01011", device = "192.168.70.237:2000", function = "0x03", register_address = 0, quantity = 1 },
+    # 二期二楼半成品流水线入口
+    { location = "R001A01011", device = "192.168.70.235:2000", function = "0x03", register_address = 2, quantity = 1 },
+    # 二期一楼成品流水线入口
+    { location = "5022-1-1-1", device = "192.168.70.235:2000", function = "0x03", register_address = 16, quantity = 1 },
 ]
 
 
