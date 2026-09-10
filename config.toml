@@ -116,6 +116,10 @@ send_routes = [
     # 一楼升降机出口   一楼升降机出口-R001A00008
     { source = "R001A00008", destination = "5021-1-1-1", device = "192.168.70.235:2000", function = "0x06", register_address = 13, value = 1 },
     { source = "R001A00008", destination = "R001A00004", device = "192.168.70.235:2000", function = "0x06", register_address = 13, value = 2 },
+    # 一楼成品流水线入口   一楼成品流水线入口-5022-1-1-1
+    { source = "5022-1-1-1", destination = "R001A00002", device = "192.168.70.235:2000", function = "0x06", register_address = 21, value = 6 },
+    { source = "5022-1-1-1", destination = "R002A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 21, value = 6 },
+    { source = "5022-1-1-1", destination = "R003A01011", device = "192.168.70.235:2000", function = "0x06", register_address = 21, value = 6 },
 ]
 
 
@@ -177,7 +181,7 @@ can_putdown_checks = [
 #   url  - 回调地址
 webhooks = [
     { name = "can-putdown-test", url = "http://192.168.70.19:9992/Conveyor/CanPutdownCallback" },
-    { name = "成品拆箱回库", url = "http://192.168.70.19:9992/Conveyor/FinishedPartsSplitedReturnCallback" },
+    { name = "成品拆箱回库", url = "http://192.168.70.19:8992/Conveyor/FinishedPartsSplitedReturnCallback" },
 ]
 
 
